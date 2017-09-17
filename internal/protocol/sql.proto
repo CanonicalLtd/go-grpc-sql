@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package protocol;
+
+// Statement received via HTTP POST and meant to be executed by a SQL
+// database.
+message Statement {
+  string text = 1;          // Textual SQL to execute.
+  repeated Value args = 2; // Arguments to bind to the statement.
+}
+
+// Value of a single statement argument or row column.
+message Value {
+  ValueCode code = 1; // Identifier of the code of the value, see below.
+  bytes data = 2;     // Serialized value, maps to one of the ValueXXX messages.
+}
+
+// ValueCode is a numberic code identifying the Go type of a value.
+//
+// It supports all types that should be handle by driver.Value in database/sql/driver.
+enum ValueCode {
+  INT64   = 0;
+  FLOAT64 = 1;
+  BOOL    = 2;
+  BYTES   = 3;
+  STRING  = 4;
+  TIME    = 5;
+  NULL    = 6;
+}
+
+message ValueInt64 {
+  int64 value = 1;
+}
+
+message ValueFloat64 {
+  double value = 1;
+}
+
+message ValueBool {
+  bool value = 1;
+}
+
+message ValueBytes {
+  bytes value = 1;
+}
+
+message ValueString {
+  string value = 1;
+}
+
+message ValueTime {
+  int64 value = 1;
+}
+
+message ValueNull {
+}
