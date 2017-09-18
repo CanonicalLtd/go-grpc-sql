@@ -3,12 +3,14 @@ package grpcsql
 import (
 	"database/sql/driver"
 
+	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"google.golang.org/grpc"
 )
 
 // Conn wraps a connection to a gRPC SQL gateway.
 type Conn struct {
-	grpcConn *grpc.ClientConn
+	grpcConn       *grpc.ClientConn
+	grpcConnClient protocol.SQL_ConnClient
 }
 
 // Prepare returns a prepared statement, bound to this connection.

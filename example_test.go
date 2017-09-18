@@ -1,13 +1,30 @@
 package grpcsql_test
 
 import (
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"log"
+	"net/http/httptest"
+	"time"
+
+	"github.com/CanonicalLtd/go-grpc-sql"
 )
 
 func Example() {
-	db, err := sql.Open("grpc", "test?certfile=testdata/clientcert.pem&keyfile=testdata/clientkey.pem")
+	server := httptest.NewUnstartedServer(grpcsql.NewServer())
+	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
+	server.StartTLS()
+	defer server.Close()
+
+	options := &grpcsql.DialOptions{
+		Address:    server.Listener.Addr().String(),
+		Timeout:    5 * time.Second,
+		CertFile:   "testdata/clientcert.pem",
+		KeyFile:    "testdata/clientkey.pem",
+		SkipVerify: true,
+	}
+	db, err := sql.Open("grpc", options.String())
 	if err != nil {
 		log.Fatalf("failed to create grpc database: %s", err)
 	}
