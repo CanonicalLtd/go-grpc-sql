@@ -8,6 +8,67 @@ import (
 	"github.com/golang/protobuf/proto"
 )
 
+// NewRequestOpen creates a new Request of type RequestOpen.
+func NewRequestOpen(name string) *Request {
+	return newRequest(&RequestOpen{Name: name})
+}
+
+// NewRequestPrepare creates a new Request of type RequestPrepare.
+func NewRequestPrepare(query string) *Request {
+	return newRequest(&RequestPrepare{Query: query})
+}
+
+// Create a new Request with the given payload.
+func newRequest(message proto.Message) *Request {
+	var code RequestCode
+	switch message.(type) {
+	case *RequestOpen:
+		code = RequestCode_OPEN
+	case *RequestPrepare:
+		code = RequestCode_PREPARE
+	default:
+		panic(fmt.Errorf("invalid message type: %s", reflect.TypeOf(message).Kind()))
+	}
+
+	data, err := proto.Marshal(message)
+	if err != nil {
+		panic(fmt.Errorf("cannot marshal %s request", code))
+	}
+
+	request := &Request{
+		Code: code,
+		Data: data,
+	}
+
+	return request
+}
+
+// NewResponseOpen creates a new Response of type ResponseOpen.
+func NewResponseOpen() *Response {
+	return newResponse(&ResponseOpen{})
+}
+
+// Create a new Response with the given payload.
+func newResponse(message proto.Message) *Response {
+	var code RequestCode
+	switch message.(type) {
+	case *ResponseOpen:
+		code = RequestCode_OPEN
+	}
+
+	data, err := proto.Marshal(message)
+	if err != nil {
+		panic(fmt.Errorf("cannot marshal %s response", code))
+	}
+
+	response := &Response{
+		Code: code,
+		Data: data,
+	}
+
+	return response
+}
+
 // NewStatement creates a new Statement object with the given SQL text and
 // arguments.
 //

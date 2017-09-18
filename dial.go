@@ -16,6 +16,7 @@ import (
 // DialOptions hold connection parameters for a gRPC SQL endpoint.
 type DialOptions struct {
 	Address      string
+	Name         string
 	Timeout      time.Duration
 	CertFile     string
 	KeyFile      string
@@ -27,6 +28,9 @@ type DialOptions struct {
 func (o *DialOptions) String() string {
 	values := url.Values{}
 
+	if o.Name != "" {
+		values.Add("name", o.Name)
+	}
 	if o.Timeout != 0 {
 		values.Add("timeout", o.Timeout.String())
 	}
@@ -100,6 +104,14 @@ func dial(options *DialOptions) (*Conn, error) {
 		return nil, fmt.Errorf("gRPC conn method failed: %v", err)
 	}
 
+	if err := grpcConnClient.Send(protocol.NewRequestOpen(options.Name)); err != nil {
+		return nil, fmt.Errorf("gRPC could not send open request: %v", err)
+	}
+
+	if _, err := grpcConnClient.Recv(); err != nil {
+		return nil, fmt.Errorf("gRPC open response error: %v", err)
+	}
+
 	conn := &Conn{
 		grpcConn:       grpcConn,
 		grpcConnClient: grpcConnClient,
@@ -121,6 +133,7 @@ func dialOptionsFromDSN(name string) (*DialOptions, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse query params: %v", err)
 		}
+
 		if timeoutString := query.Get("timeout"); timeoutString != "" {
 			options.Timeout, err = time.ParseDuration(timeoutString)
 			if err != nil {
@@ -128,6 +141,7 @@ func dialOptionsFromDSN(name string) (*DialOptions, error) {
 			}
 		}
 
+		options.Name = query.Get("name")
 		options.CertFile = query.Get("certfile")
 		options.KeyFile = query.Get("keyfile")
 		options.RootCertFile = query.Get("rootcertfile")

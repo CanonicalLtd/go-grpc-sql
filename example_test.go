@@ -9,16 +9,19 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/mattn/go-sqlite3"
 )
 
 func Example() {
-	server := httptest.NewUnstartedServer(grpcsql.NewServer())
+	driver := &sqlite3.SQLiteDriver{}
+	server := httptest.NewUnstartedServer(grpcsql.NewServer(driver))
 	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
 	server.StartTLS()
 	defer server.Close()
 
 	options := &grpcsql.DialOptions{
 		Address:    server.Listener.Addr().String(),
+		Name:       ":memory:",
 		Timeout:    5 * time.Second,
 		CertFile:   "testdata/clientcert.pem",
 		KeyFile:    "testdata/clientkey.pem",

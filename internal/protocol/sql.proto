@@ -7,22 +7,50 @@ service SQL {
   rpc Conn(stream Request) returns (stream Response);
 }
 
+// A single request targeted to a certain SQL connection.
 message Request {
+  RequestCode code = 1; // Code identifying the type of request, see below.
+  bytes data = 2;       // Serialized request, maps to one of the RequestXXX messages.
 }
 
-message Response {
+// RequestCode is a numberic code identifying the SQL gRPC request to
+// handle.
+enum RequestCode {
+  OPEN    = 0;
+  PREPARE = 1;
 }
+
+// Open a new driver connection.
+message RequestOpen {
+  string name = 1; //  Data source name to pass to the SQL driver.
+}
+
+// Prepare a new query.
+message RequestPrepare {
+  string query = 1;
+}
+
+// A single response to a request.
+message Response {
+  RequestCode code = 1; // Code identifying the type of the request this response is for, see below.
+  bytes data = 2;       // Serialized response, maps to one of the ResponseXXX messages.
+}
+
+// Response for a RequestOpen.
+message ResponseOpen {
+}
+
 
 // Statement received via HTTP POST and meant to be executed by a SQL
 // database.
 message Statement {
-  string text = 1;          // Textual SQL to execute.
+  string text = 1;         // Textual SQL to execute.
   repeated Value args = 2; // Arguments to bind to the statement.
 }
 
 // Value of a single statement argument or row column.
 message Value {
-  ValueCode code = 1; // Identifier of the code of the value, see below.
+  ValueCode code = 1; // Code identifying the type of the value, see below.
   bytes data = 2;     // Serialized value, maps to one of the ValueXXX messages.
 }
 
