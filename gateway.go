@@ -40,6 +40,7 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 				driver: s.driver,
 				stmts:  make(map[int64]driver.Stmt),
 				txs:    make(map[int64]driver.Tx),
+				rows:   make(map[int64]driver.Rows),
 			}
 			defer conn.Close()
 		}
@@ -61,6 +62,7 @@ type gatewayConn struct {
 	driverConn driver.Conn
 	stmts      map[int64]driver.Stmt
 	txs        map[int64]driver.Tx
+	rows       map[int64]driver.Rows
 	serial     int64
 }
 
@@ -75,6 +77,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestPrepare{}
 	case protocol.RequestCode_EXEC:
 		message = &protocol.RequestExec{}
+	case protocol.RequestCode_QUERY:
+		message = &protocol.RequestQuery{}
 	case protocol.RequestCode_STMT_CLOSE:
 		message = &protocol.RequestStmtClose{}
 	case protocol.RequestCode_BEGIN:
@@ -105,6 +109,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		return c.handlePrepare(r)
 	case *protocol.RequestExec:
 		return c.handleExec(r)
+	case *protocol.RequestQuery:
+		return c.handleQuery(r)
 	case *protocol.RequestStmtClose:
 		return c.handleStmtClose(r)
 	case *protocol.RequestBegin:
@@ -182,6 +188,29 @@ func (c *gatewayConn) handleExec(request *protocol.RequestExec) (*protocol.Respo
 	response := protocol.NewResponseExec(lastInsertID, rowsAffected)
 
 	return response, nil
+}
+
+// Handle a request of type QUERY.
+func (c *gatewayConn) handleQuery(request *protocol.RequestQuery) (*protocol.Response, error) {
+	driverStmt, ok := c.stmts[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no prepared statement with ID %d", request.Id)
+	}
+
+	args, err := protocol.ToDriverValues(request.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	driverRows, err := driverStmt.Query(args)
+	if err != nil {
+		return nil, err
+	}
+
+	c.serial++
+	c.rows[c.serial] = driverRows
+
+	return protocol.NewResponseQuery(c.serial, driverRows.Columns()), nil
 }
 
 // Handle a request of type STMT_CLOSE.

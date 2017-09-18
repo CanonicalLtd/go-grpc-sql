@@ -46,6 +46,21 @@ func (s *Stmt) Exec(args []driver.Value) (driver.Result, error) {
 
 // Query executes a query that may return rows, such as a
 func (s *Stmt) Query(args []driver.Value) (driver.Rows, error) {
-	rows := &Rows{}
+	values, err := protocol.FromDriverValues(args)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := s.conn.exec(protocol.NewRequestQuery(s.id, values))
+	if err != nil {
+		return nil, err
+	}
+
+	rows := &Rows{
+		conn:    s.conn,
+		id:      response.Query().Id,
+		columns: response.Query().Columns,
+	}
+
 	return rows, nil
 }

@@ -7,6 +7,9 @@ import (
 
 // Rows is an iterator over an executed query's results.
 type Rows struct {
+	conn    *Conn
+	id      int64
+	columns []string
 }
 
 // Columns returns the names of the columns. The number of
@@ -14,7 +17,7 @@ type Rows struct {
 // slice. If a particular column name isn't known, an empty
 // string should be returned for that entry.
 func (r *Rows) Columns() []string {
-	return []string{"n"}
+	return r.columns
 }
 
 // Close closes the rows iterator.
