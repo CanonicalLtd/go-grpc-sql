@@ -73,6 +73,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestPrepare{}
 	case protocol.RequestCode_EXEC:
 		message = &protocol.RequestExec{}
+	case protocol.RequestCode_STMT_CLOSE:
+		message = &protocol.RequestStmtClose{}
 	case protocol.RequestCode_CLOSE:
 		message = &protocol.RequestClose{}
 	default:
@@ -95,6 +97,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		return c.handlePrepare(r)
 	case *protocol.RequestExec:
 		return c.handleExec(r)
+	case *protocol.RequestStmtClose:
+		return c.handleStmtClose(r)
 	case *protocol.RequestClose:
 		return c.handleClose(r)
 	default:
@@ -163,6 +167,21 @@ func (c *gatewayConn) handleExec(request *protocol.RequestExec) (*protocol.Respo
 
 	response := protocol.NewResponseExec(lastInsertID, rowsAffected)
 
+	return response, nil
+}
+
+// Handle a request of type STMT_CLOSE.
+func (c *gatewayConn) handleStmtClose(request *protocol.RequestStmtClose) (*protocol.Response, error) {
+	driverStmt, ok := c.stmts[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no prepared statement with ID %d", request.Id)
+	}
+
+	if err := driverStmt.Close(); err != nil {
+		return nil, err
+	}
+
+	response := protocol.NewResponseStmtClose()
 	return response, nil
 }
 

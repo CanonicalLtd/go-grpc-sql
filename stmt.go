@@ -16,7 +16,8 @@ type Stmt struct {
 
 // Close closes the statement.
 func (s *Stmt) Close() error {
-	return nil
+	_, err := s.conn.exec(protocol.NewRequestStmtClose(s.id))
+	return err
 }
 
 // NumInput returns the number of placeholder parameters.

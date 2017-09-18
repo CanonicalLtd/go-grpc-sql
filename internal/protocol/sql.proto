@@ -16,10 +16,11 @@ message Request {
 // RequestCode is a numberic code identifying the SQL gRPC request to
 // handle.
 enum RequestCode {
-  OPEN    = 0;
-  PREPARE = 1;
-  EXEC    = 2;
-  CLOSE   = 3;
+  OPEN       = 0;
+  PREPARE    = 1;
+  EXEC       = 2;
+  STMT_CLOSE = 3;
+  CLOSE   =    4;
 }
 
 message RequestOpen {
@@ -33,6 +34,10 @@ message RequestPrepare {
 message RequestExec {
   int64 id = 1;            // ID of the prepared statement.
   repeated Value args = 2; // Arguments to bind to the statement.
+}
+
+message RequestStmtClose {
+  int64 id = 1; // ID of the prepared statement.
 }
 
 message RequestClose {
@@ -55,6 +60,9 @@ message ResponsePrepare {
 message ResponseExec {
   int64 LastInsertId = 1;
   int64 RowsAffected = 2;
+}
+
+message ResponseStmtClose {
 }
 
 message ResponseClose {

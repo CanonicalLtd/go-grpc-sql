@@ -24,6 +24,11 @@ func NewRequestExec(id int64, args []*Value) *Request {
 	return newRequest(&RequestExec{Id: id, Args: args})
 }
 
+// NewRequestStmtClose creates a new Request of type RequestStmtClose.
+func NewRequestStmtClose(id int64) *Request {
+	return newRequest(&RequestStmtClose{Id: id})
+}
+
 // NewRequestClose creates a new Request of type RequestClose.
 func NewRequestClose() *Request {
 	return newRequest(&RequestClose{})
@@ -39,6 +44,8 @@ func newRequest(message proto.Message) *Request {
 		code = RequestCode_PREPARE
 	case *RequestExec:
 		code = RequestCode_EXEC
+	case *RequestStmtClose:
+		code = RequestCode_STMT_CLOSE
 	case *RequestClose:
 		code = RequestCode_CLOSE
 	default:
@@ -76,6 +83,11 @@ func NewResponseExec(lastInsertID, rowsAffected int64) *Response {
 	})
 }
 
+// NewResponseStmtClose creates a new Response of type ResponseStmtClose.
+func NewResponseStmtClose() *Response {
+	return newResponse(&ResponseStmtClose{})
+}
+
 // NewResponseClose creates a new Response of type ResponseClose.
 func NewResponseClose() *Response {
 	return newResponse(&ResponseClose{})
@@ -111,6 +123,8 @@ func newResponse(message proto.Message) *Response {
 		code = RequestCode_PREPARE
 	case *ResponseExec:
 		code = RequestCode_EXEC
+	case *ResponseStmtClose:
+		code = RequestCode_STMT_CLOSE
 	case *ResponseClose:
 		code = RequestCode_CLOSE
 	default:
