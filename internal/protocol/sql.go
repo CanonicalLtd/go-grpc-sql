@@ -29,6 +29,11 @@ func NewRequestQuery(id int64, args []*Value) *Request {
 	return newRequest(&RequestQuery{Id: id, Args: args})
 }
 
+// NewRequestNext creates a new Request of type RequestNext.
+func NewRequestNext(id int64, n int64) *Request {
+	return newRequest(&RequestNext{Id: id, Len: n})
+}
+
 // NewRequestStmtClose creates a new Request of type RequestStmtClose.
 func NewRequestStmtClose(id int64) *Request {
 	return newRequest(&RequestStmtClose{Id: id})
@@ -66,6 +71,8 @@ func newRequest(message proto.Message) *Request {
 		code = RequestCode_EXEC
 	case *RequestQuery:
 		code = RequestCode_QUERY
+	case *RequestNext:
+		code = RequestCode_NEXT
 	case *RequestStmtClose:
 		code = RequestCode_STMT_CLOSE
 	case *RequestBegin:
@@ -119,6 +126,14 @@ func NewResponseQuery(id int64, columns []string) *Response {
 	})
 }
 
+// NewResponseNext creates a new Response of type ResponseNext.
+func NewResponseNext(eof bool, values []*Value) *Response {
+	return newResponse(&ResponseNext{
+		Eof:    eof,
+		Values: values,
+	})
+}
+
 // NewResponseStmtClose creates a new Response of type ResponseStmtClose.
 func NewResponseStmtClose() *Response {
 	return newResponse(&ResponseStmtClose{})
@@ -165,6 +180,13 @@ func (r *Response) Query() *ResponseQuery {
 	return message
 }
 
+// Next returns a ResponseNext payload.
+func (r *Response) Next() *ResponseNext {
+	message := &ResponseNext{}
+	r.unmarshal(message)
+	return message
+}
+
 // Begin returns a ResponseBegin payload.
 func (r *Response) Begin() *ResponseBegin {
 	message := &ResponseBegin{}
@@ -190,6 +212,8 @@ func newResponse(message proto.Message) *Response {
 		code = RequestCode_EXEC
 	case *ResponseQuery:
 		code = RequestCode_QUERY
+	case *ResponseNext:
+		code = RequestCode_NEXT
 	case *ResponseBegin:
 		code = RequestCode_BEGIN
 	case *ResponseCommit:

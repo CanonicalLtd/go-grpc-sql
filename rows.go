@@ -3,6 +3,8 @@ package grpcsql
 import (
 	"database/sql/driver"
 	"io"
+
+	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 )
 
 // Rows is an iterator over an executed query's results.
@@ -31,5 +33,21 @@ func (r *Rows) Close() error {
 //
 // Next should return io.EOF when there are no more rows.
 func (r *Rows) Next(dest []driver.Value) error {
-	return io.EOF
+	response, err := r.conn.exec(protocol.NewRequestNext(r.id, int64(len(dest))))
+	if err != nil {
+		return err
+	}
+
+	if response.Next().Eof {
+		return io.EOF
+	}
+
+	values, err := protocol.ToDriverValues(response.Next().Values)
+	if err != nil {
+		return err
+	}
+	for i, value := range values {
+		dest[i] = value
+	}
+	return nil
 }

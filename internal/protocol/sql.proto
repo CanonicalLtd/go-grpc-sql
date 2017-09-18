@@ -20,11 +20,13 @@ enum RequestCode {
   PREPARE    = 1;
   EXEC       = 2;
   QUERY      = 3;
-  STMT_CLOSE = 4;
-  BEGIN      = 5;
-  COMMIT     = 6;
-  ROLLBACK   = 7;
-  CLOSE      = 8;
+  NEXT       = 4;
+  ROWS_CLOSE = 5;
+  STMT_CLOSE = 6;
+  BEGIN      = 7;
+  COMMIT     = 8;
+  ROLLBACK   = 9;
+  CLOSE      = 10;
 }
 
 message RequestOpen {
@@ -43,6 +45,11 @@ message RequestExec {
 message RequestQuery {
   int64 id = 1;            // ID of the prepared statement.
   repeated Value args = 2; // Arguments to bind to the statement.
+}
+
+message RequestNext {
+  int64 id = 1;  // ID of the rows object.
+  int64 len = 2; // Number of columns to fetch.
 }
 
 message RequestStmtClose {
@@ -87,6 +94,10 @@ message ResponseQuery {
   repeated string columns = 2; // Names of the columns in the result set.
 }
 
+message ResponseNext {
+  bool eof = 1;
+  repeated Value values = 2; // Column values.
+}
 
 message ResponseStmtClose {
 }

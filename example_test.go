@@ -44,17 +44,33 @@ func Example() {
 		log.Fatalf("failed to execute create table statement over grpc: %s", err)
 	}
 
+	result, err = tx.Exec("INSERT INTO test(n) VALUES (1)")
+	if err != nil {
+		log.Fatalf("failed to execute create table statement over grpc: %s", err)
+	}
+
 	rows, err := tx.Query("SELECT n FROM test")
 	if err != nil {
 		log.Fatalf("failed to select rows over grpc: %s", err)
 	}
+	numbers := []int{}
+	for rows.Next() {
+		var n int
+		if err := rows.Scan(&n); err != nil {
+			log.Fatalf("failed to scan row over grpc: %s", err)
+		}
+		numbers = append(numbers, n)
+	}
+	if err := rows.Err(); err != nil {
+		log.Fatalf("rows error over grpc: %s", err)
+	}
 	defer rows.Close()
 
 	// Output:
-	// 0 <nil>
-	// 0 <nil>
-	// [n] <nil>
+	// 1 <nil>
+	// 1 <nil>
+	// [1]
 	fmt.Println(result.LastInsertId())
 	fmt.Println(result.RowsAffected())
-	fmt.Println(rows.Columns())
+	fmt.Println(numbers)
 }

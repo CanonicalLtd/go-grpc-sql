@@ -79,6 +79,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestExec{}
 	case protocol.RequestCode_QUERY:
 		message = &protocol.RequestQuery{}
+	case protocol.RequestCode_NEXT:
+		message = &protocol.RequestNext{}
 	case protocol.RequestCode_STMT_CLOSE:
 		message = &protocol.RequestStmtClose{}
 	case protocol.RequestCode_BEGIN:
@@ -111,6 +113,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		return c.handleExec(r)
 	case *protocol.RequestQuery:
 		return c.handleQuery(r)
+	case *protocol.RequestNext:
+		return c.handleNext(r)
 	case *protocol.RequestStmtClose:
 		return c.handleStmtClose(r)
 	case *protocol.RequestBegin:
@@ -211,6 +215,31 @@ func (c *gatewayConn) handleQuery(request *protocol.RequestQuery) (*protocol.Res
 	c.rows[c.serial] = driverRows
 
 	return protocol.NewResponseQuery(c.serial, driverRows.Columns()), nil
+}
+
+// Handle a request of type NEXT.
+func (c *gatewayConn) handleNext(request *protocol.RequestNext) (*protocol.Response, error) {
+	driverRows, ok := c.rows[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no rows with ID %d", request.Id)
+	}
+
+	dest := make([]driver.Value, int(request.Len))
+	err := driverRows.Next(dest)
+	if err == io.EOF {
+		return protocol.NewResponseNext(true, nil), nil
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	values, err := protocol.FromDriverValues(dest)
+	if err != nil {
+		return nil, err
+	}
+
+	return protocol.NewResponseNext(false, values), nil
 }
 
 // Handle a request of type STMT_CLOSE.
