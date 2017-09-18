@@ -3,32 +3,38 @@
 // DO NOT EDIT!
 
 /*
-	Package protocol is a generated protocol buffer package.
+Package protocol is a generated protocol buffer package.
 
-	It is generated from these files:
-		internal/protocol/sql.proto
+It is generated from these files:
+	internal/protocol/sql.proto
 
-	It has these top-level messages:
-		Request
-		RequestOpen
-		RequestPrepare
-		RequestExec
-		RequestStmtClose
-		RequestClose
-		Response
-		ResponseOpen
-		ResponsePrepare
-		ResponseExec
-		ResponseStmtClose
-		ResponseClose
-		Value
-		ValueInt64
-		ValueFloat64
-		ValueBool
-		ValueBytes
-		ValueString
-		ValueTime
-		ValueNull
+It has these top-level messages:
+	Request
+	RequestOpen
+	RequestPrepare
+	RequestExec
+	RequestStmtClose
+	RequestBegin
+	RequestCommit
+	RequestRollback
+	RequestClose
+	Response
+	ResponseOpen
+	ResponsePrepare
+	ResponseExec
+	ResponseStmtClose
+	ResponseBegin
+	ResponseCommit
+	ResponseRollback
+	ResponseClose
+	Value
+	ValueInt64
+	ValueFloat64
+	ValueBool
+	ValueBytes
+	ValueString
+	ValueTime
+	ValueNull
 */
 package protocol
 
@@ -63,7 +69,10 @@ const (
 	RequestCode_PREPARE    RequestCode = 1
 	RequestCode_EXEC       RequestCode = 2
 	RequestCode_STMT_CLOSE RequestCode = 3
-	RequestCode_CLOSE      RequestCode = 4
+	RequestCode_BEGIN      RequestCode = 4
+	RequestCode_COMMIT     RequestCode = 5
+	RequestCode_ROLLBACK   RequestCode = 6
+	RequestCode_CLOSE      RequestCode = 7
 )
 
 var RequestCode_name = map[int32]string{
@@ -71,14 +80,20 @@ var RequestCode_name = map[int32]string{
 	1: "PREPARE",
 	2: "EXEC",
 	3: "STMT_CLOSE",
-	4: "CLOSE",
+	4: "BEGIN",
+	5: "COMMIT",
+	6: "ROLLBACK",
+	7: "CLOSE",
 }
 var RequestCode_value = map[string]int32{
 	"OPEN":       0,
 	"PREPARE":    1,
 	"EXEC":       2,
 	"STMT_CLOSE": 3,
-	"CLOSE":      4,
+	"BEGIN":      4,
+	"COMMIT":     5,
+	"ROLLBACK":   6,
+	"CLOSE":      7,
 }
 
 func (x RequestCode) String() string {
@@ -222,13 +237,53 @@ func (m *RequestStmtClose) GetId() int64 {
 	return 0
 }
 
+type RequestBegin struct {
+}
+
+func (m *RequestBegin) Reset()                    { *m = RequestBegin{} }
+func (m *RequestBegin) String() string            { return proto.CompactTextString(m) }
+func (*RequestBegin) ProtoMessage()               {}
+func (*RequestBegin) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{5} }
+
+type RequestCommit struct {
+	Id int64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (m *RequestCommit) Reset()                    { *m = RequestCommit{} }
+func (m *RequestCommit) String() string            { return proto.CompactTextString(m) }
+func (*RequestCommit) ProtoMessage()               {}
+func (*RequestCommit) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{6} }
+
+func (m *RequestCommit) GetId() int64 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+type RequestRollback struct {
+	Id int64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (m *RequestRollback) Reset()                    { *m = RequestRollback{} }
+func (m *RequestRollback) String() string            { return proto.CompactTextString(m) }
+func (*RequestRollback) ProtoMessage()               {}
+func (*RequestRollback) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{7} }
+
+func (m *RequestRollback) GetId() int64 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
 type RequestClose struct {
 }
 
 func (m *RequestClose) Reset()                    { *m = RequestClose{} }
 func (m *RequestClose) String() string            { return proto.CompactTextString(m) }
 func (*RequestClose) ProtoMessage()               {}
-func (*RequestClose) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{5} }
+func (*RequestClose) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{8} }
 
 // A single response to a request.
 type Response struct {
@@ -239,7 +294,7 @@ type Response struct {
 func (m *Response) Reset()                    { *m = Response{} }
 func (m *Response) String() string            { return proto.CompactTextString(m) }
 func (*Response) ProtoMessage()               {}
-func (*Response) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{6} }
+func (*Response) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{9} }
 
 func (m *Response) GetCode() RequestCode {
 	if m != nil {
@@ -261,7 +316,7 @@ type ResponseOpen struct {
 func (m *ResponseOpen) Reset()                    { *m = ResponseOpen{} }
 func (m *ResponseOpen) String() string            { return proto.CompactTextString(m) }
 func (*ResponseOpen) ProtoMessage()               {}
-func (*ResponseOpen) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{7} }
+func (*ResponseOpen) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{10} }
 
 type ResponsePrepare struct {
 	Id       int64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -271,7 +326,7 @@ type ResponsePrepare struct {
 func (m *ResponsePrepare) Reset()                    { *m = ResponsePrepare{} }
 func (m *ResponsePrepare) String() string            { return proto.CompactTextString(m) }
 func (*ResponsePrepare) ProtoMessage()               {}
-func (*ResponsePrepare) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{8} }
+func (*ResponsePrepare) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{11} }
 
 func (m *ResponsePrepare) GetId() int64 {
 	if m != nil {
@@ -295,7 +350,7 @@ type ResponseExec struct {
 func (m *ResponseExec) Reset()                    { *m = ResponseExec{} }
 func (m *ResponseExec) String() string            { return proto.CompactTextString(m) }
 func (*ResponseExec) ProtoMessage()               {}
-func (*ResponseExec) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{9} }
+func (*ResponseExec) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{12} }
 
 func (m *ResponseExec) GetLastInsertId() int64 {
 	if m != nil {
@@ -317,7 +372,39 @@ type ResponseStmtClose struct {
 func (m *ResponseStmtClose) Reset()                    { *m = ResponseStmtClose{} }
 func (m *ResponseStmtClose) String() string            { return proto.CompactTextString(m) }
 func (*ResponseStmtClose) ProtoMessage()               {}
-func (*ResponseStmtClose) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{10} }
+func (*ResponseStmtClose) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{13} }
+
+type ResponseBegin struct {
+	Id int64 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+}
+
+func (m *ResponseBegin) Reset()                    { *m = ResponseBegin{} }
+func (m *ResponseBegin) String() string            { return proto.CompactTextString(m) }
+func (*ResponseBegin) ProtoMessage()               {}
+func (*ResponseBegin) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{14} }
+
+func (m *ResponseBegin) GetId() int64 {
+	if m != nil {
+		return m.Id
+	}
+	return 0
+}
+
+type ResponseCommit struct {
+}
+
+func (m *ResponseCommit) Reset()                    { *m = ResponseCommit{} }
+func (m *ResponseCommit) String() string            { return proto.CompactTextString(m) }
+func (*ResponseCommit) ProtoMessage()               {}
+func (*ResponseCommit) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{15} }
+
+type ResponseRollback struct {
+}
+
+func (m *ResponseRollback) Reset()                    { *m = ResponseRollback{} }
+func (m *ResponseRollback) String() string            { return proto.CompactTextString(m) }
+func (*ResponseRollback) ProtoMessage()               {}
+func (*ResponseRollback) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{16} }
 
 type ResponseClose struct {
 }
@@ -325,7 +412,7 @@ type ResponseClose struct {
 func (m *ResponseClose) Reset()                    { *m = ResponseClose{} }
 func (m *ResponseClose) String() string            { return proto.CompactTextString(m) }
 func (*ResponseClose) ProtoMessage()               {}
-func (*ResponseClose) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{11} }
+func (*ResponseClose) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{17} }
 
 // Value of a single statement argument or row column.
 type Value struct {
@@ -336,7 +423,7 @@ type Value struct {
 func (m *Value) Reset()                    { *m = Value{} }
 func (m *Value) String() string            { return proto.CompactTextString(m) }
 func (*Value) ProtoMessage()               {}
-func (*Value) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{12} }
+func (*Value) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{18} }
 
 func (m *Value) GetCode() ValueCode {
 	if m != nil {
@@ -359,7 +446,7 @@ type ValueInt64 struct {
 func (m *ValueInt64) Reset()                    { *m = ValueInt64{} }
 func (m *ValueInt64) String() string            { return proto.CompactTextString(m) }
 func (*ValueInt64) ProtoMessage()               {}
-func (*ValueInt64) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{13} }
+func (*ValueInt64) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{19} }
 
 func (m *ValueInt64) GetValue() int64 {
 	if m != nil {
@@ -375,7 +462,7 @@ type ValueFloat64 struct {
 func (m *ValueFloat64) Reset()                    { *m = ValueFloat64{} }
 func (m *ValueFloat64) String() string            { return proto.CompactTextString(m) }
 func (*ValueFloat64) ProtoMessage()               {}
-func (*ValueFloat64) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{14} }
+func (*ValueFloat64) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{20} }
 
 func (m *ValueFloat64) GetValue() float64 {
 	if m != nil {
@@ -391,7 +478,7 @@ type ValueBool struct {
 func (m *ValueBool) Reset()                    { *m = ValueBool{} }
 func (m *ValueBool) String() string            { return proto.CompactTextString(m) }
 func (*ValueBool) ProtoMessage()               {}
-func (*ValueBool) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{15} }
+func (*ValueBool) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{21} }
 
 func (m *ValueBool) GetValue() bool {
 	if m != nil {
@@ -407,7 +494,7 @@ type ValueBytes struct {
 func (m *ValueBytes) Reset()                    { *m = ValueBytes{} }
 func (m *ValueBytes) String() string            { return proto.CompactTextString(m) }
 func (*ValueBytes) ProtoMessage()               {}
-func (*ValueBytes) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{16} }
+func (*ValueBytes) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{22} }
 
 func (m *ValueBytes) GetValue() []byte {
 	if m != nil {
@@ -423,7 +510,7 @@ type ValueString struct {
 func (m *ValueString) Reset()                    { *m = ValueString{} }
 func (m *ValueString) String() string            { return proto.CompactTextString(m) }
 func (*ValueString) ProtoMessage()               {}
-func (*ValueString) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{17} }
+func (*ValueString) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{23} }
 
 func (m *ValueString) GetValue() string {
 	if m != nil {
@@ -439,7 +526,7 @@ type ValueTime struct {
 func (m *ValueTime) Reset()                    { *m = ValueTime{} }
 func (m *ValueTime) String() string            { return proto.CompactTextString(m) }
 func (*ValueTime) ProtoMessage()               {}
-func (*ValueTime) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{18} }
+func (*ValueTime) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{24} }
 
 func (m *ValueTime) GetValue() int64 {
 	if m != nil {
@@ -454,7 +541,7 @@ type ValueNull struct {
 func (m *ValueNull) Reset()                    { *m = ValueNull{} }
 func (m *ValueNull) String() string            { return proto.CompactTextString(m) }
 func (*ValueNull) ProtoMessage()               {}
-func (*ValueNull) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{19} }
+func (*ValueNull) Descriptor() ([]byte, []int) { return fileDescriptorSql, []int{25} }
 
 func init() {
 	proto.RegisterType((*Request)(nil), "protocol.Request")
@@ -462,12 +549,18 @@ func init() {
 	proto.RegisterType((*RequestPrepare)(nil), "protocol.RequestPrepare")
 	proto.RegisterType((*RequestExec)(nil), "protocol.RequestExec")
 	proto.RegisterType((*RequestStmtClose)(nil), "protocol.RequestStmtClose")
+	proto.RegisterType((*RequestBegin)(nil), "protocol.RequestBegin")
+	proto.RegisterType((*RequestCommit)(nil), "protocol.RequestCommit")
+	proto.RegisterType((*RequestRollback)(nil), "protocol.RequestRollback")
 	proto.RegisterType((*RequestClose)(nil), "protocol.RequestClose")
 	proto.RegisterType((*Response)(nil), "protocol.Response")
 	proto.RegisterType((*ResponseOpen)(nil), "protocol.ResponseOpen")
 	proto.RegisterType((*ResponsePrepare)(nil), "protocol.ResponsePrepare")
 	proto.RegisterType((*ResponseExec)(nil), "protocol.ResponseExec")
 	proto.RegisterType((*ResponseStmtClose)(nil), "protocol.ResponseStmtClose")
+	proto.RegisterType((*ResponseBegin)(nil), "protocol.ResponseBegin")
+	proto.RegisterType((*ResponseCommit)(nil), "protocol.ResponseCommit")
+	proto.RegisterType((*ResponseRollback)(nil), "protocol.ResponseRollback")
 	proto.RegisterType((*ResponseClose)(nil), "protocol.ResponseClose")
 	proto.RegisterType((*Value)(nil), "protocol.Value")
 	proto.RegisterType((*ValueInt64)(nil), "protocol.ValueInt64")
@@ -720,6 +813,70 @@ func (m *RequestStmtClose) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *RequestBegin) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RequestBegin) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	return i, nil
+}
+
+func (m *RequestCommit) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RequestCommit) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Id != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintSql(dAtA, i, uint64(m.Id))
+	}
+	return i, nil
+}
+
+func (m *RequestRollback) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RequestRollback) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Id != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintSql(dAtA, i, uint64(m.Id))
+	}
+	return i, nil
+}
+
 func (m *RequestClose) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -852,6 +1009,65 @@ func (m *ResponseStmtClose) Marshal() (dAtA []byte, err error) {
 }
 
 func (m *ResponseStmtClose) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	return i, nil
+}
+
+func (m *ResponseBegin) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ResponseBegin) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if m.Id != 0 {
+		dAtA[i] = 0x8
+		i++
+		i = encodeVarintSql(dAtA, i, uint64(m.Id))
+	}
+	return i, nil
+}
+
+func (m *ResponseCommit) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ResponseCommit) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	return i, nil
+}
+
+func (m *ResponseRollback) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ResponseRollback) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
@@ -1153,6 +1369,30 @@ func (m *RequestStmtClose) Size() (n int) {
 	return n
 }
 
+func (m *RequestBegin) Size() (n int) {
+	var l int
+	_ = l
+	return n
+}
+
+func (m *RequestCommit) Size() (n int) {
+	var l int
+	_ = l
+	if m.Id != 0 {
+		n += 1 + sovSql(uint64(m.Id))
+	}
+	return n
+}
+
+func (m *RequestRollback) Size() (n int) {
+	var l int
+	_ = l
+	if m.Id != 0 {
+		n += 1 + sovSql(uint64(m.Id))
+	}
+	return n
+}
+
 func (m *RequestClose) Size() (n int) {
 	var l int
 	_ = l
@@ -1203,6 +1443,27 @@ func (m *ResponseExec) Size() (n int) {
 }
 
 func (m *ResponseStmtClose) Size() (n int) {
+	var l int
+	_ = l
+	return n
+}
+
+func (m *ResponseBegin) Size() (n int) {
+	var l int
+	_ = l
+	if m.Id != 0 {
+		n += 1 + sovSql(uint64(m.Id))
+	}
+	return n
+}
+
+func (m *ResponseCommit) Size() (n int) {
+	var l int
+	_ = l
+	return n
+}
+
+func (m *ResponseRollback) Size() (n int) {
 	var l int
 	_ = l
 	return n
@@ -1729,6 +1990,194 @@ func (m *RequestStmtClose) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *RequestBegin) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSql
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RequestBegin: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RequestBegin: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSql(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSql
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RequestCommit) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSql
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RequestCommit: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RequestCommit: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			m.Id = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSql
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Id |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSql(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSql
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RequestRollback) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSql
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RequestRollback: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RequestRollback: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			m.Id = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSql
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Id |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSql(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSql
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *RequestClose) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2132,6 +2581,175 @@ func (m *ResponseStmtClose) Unmarshal(dAtA []byte) error {
 		}
 		if fieldNum <= 0 {
 			return fmt.Errorf("proto: ResponseStmtClose: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSql(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSql
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ResponseBegin) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSql
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ResponseBegin: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ResponseBegin: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
+			}
+			m.Id = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowSql
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Id |= (int64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSql(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSql
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ResponseCommit) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSql
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ResponseCommit: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ResponseCommit: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipSql(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthSql
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ResponseRollback) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowSql
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ResponseRollback: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ResponseRollback: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		default:
@@ -2899,42 +3517,47 @@ var (
 func init() { proto.RegisterFile("internal/protocol/sql.proto", fileDescriptorSql) }
 
 var fileDescriptorSql = []byte{
-	// 580 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xa4, 0x92, 0xd1, 0x6e, 0xd3, 0x3c,
-	0x18, 0x86, 0x97, 0x36, 0xdd, 0xda, 0xaf, 0xf9, 0xbb, 0xcc, 0xfb, 0x91, 0xa6, 0x21, 0x55, 0x9b,
-	0x87, 0xa0, 0xec, 0x60, 0x83, 0x31, 0x4d, 0x9c, 0x70, 0xb0, 0x94, 0x0c, 0x22, 0x65, 0x4d, 0x71,
-	0xc2, 0x34, 0x8e, 0x50, 0x68, 0xbc, 0xa9, 0x52, 0x6a, 0x77, 0x89, 0x03, 0xec, 0x4e, 0xb8, 0x24,
-	0x0e, 0xb9, 0x04, 0x34, 0x6e, 0x04, 0xd9, 0x89, 0xbb, 0xb5, 0x13, 0xe2, 0x80, 0x33, 0x7f, 0x6f,
-	0x1e, 0x3d, 0xb6, 0xdf, 0x18, 0x1e, 0x8e, 0x99, 0xa0, 0x19, 0x8b, 0xd3, 0xfd, 0x69, 0xc6, 0x05,
-	0x1f, 0xf1, 0x74, 0x3f, 0xbf, 0x4a, 0xf7, 0xd4, 0x80, 0x9a, 0x3a, 0xc3, 0x6f, 0x61, 0x85, 0xd0,
-	0xab, 0x82, 0xe6, 0x02, 0x3d, 0x05, 0x73, 0xc4, 0x13, 0xba, 0x61, 0x6c, 0x19, 0xbd, 0xce, 0xc1,
-	0x83, 0x3d, 0xcd, 0xec, 0x55, 0x40, 0x9f, 0x27, 0x94, 0x28, 0x04, 0x21, 0x30, 0x93, 0x58, 0xc4,
-	0x1b, 0xb5, 0x2d, 0xa3, 0x67, 0x11, 0xb5, 0xc6, 0xdb, 0xd0, 0xae, 0xc0, 0x60, 0x4a, 0x99, 0x44,
-	0x58, 0x3c, 0x29, 0x6d, 0x2d, 0xa2, 0xd6, 0xf8, 0x31, 0x74, 0x2a, 0x64, 0x98, 0xd1, 0x69, 0x9c,
-	0x51, 0xf4, 0x3f, 0x34, 0xae, 0x0a, 0x9a, 0x5d, 0x57, 0x58, 0x39, 0x60, 0x67, 0xa6, 0x72, 0xbf,
-	0xd2, 0x11, 0xea, 0x40, 0x6d, 0x9c, 0x28, 0xa2, 0x4e, 0x6a, 0xe3, 0x04, 0xed, 0x80, 0x19, 0x67,
-	0x97, 0xf9, 0x46, 0x6d, 0xab, 0xde, 0x6b, 0x1f, 0xac, 0xde, 0x1e, 0xf4, 0x2c, 0x4e, 0x0b, 0x4a,
-	0xd4, 0x47, 0x8c, 0xc1, 0xae, 0x1c, 0xa1, 0x98, 0x88, 0x7e, 0xca, 0x73, 0xba, 0x28, 0xc2, 0x1d,
-	0xb0, 0xf4, 0xdd, 0xe4, 0x77, 0xec, 0x41, 0x93, 0xd0, 0x7c, 0xca, 0x59, 0x4e, 0xff, 0xb5, 0x0d,
-	0xa5, 0x2e, 0x55, 0xb2, 0x0e, 0xfc, 0x0a, 0x56, 0xf5, 0xac, 0xef, 0xbe, 0x78, 0xad, 0x4d, 0x68,
-	0xb2, 0x62, 0xe2, 0xb1, 0x69, 0x21, 0x94, 0xaa, 0x4e, 0x66, 0x33, 0x3e, 0xbb, 0xd5, 0xa9, 0x4a,
-	0x30, 0x58, 0x7e, 0x9c, 0x0b, 0x8f, 0xe5, 0x34, 0x13, 0x9e, 0xb6, 0x58, 0xe9, 0x9d, 0x4c, 0x32,
-	0x84, 0x7f, 0xc9, 0x8f, 0x2f, 0x2e, 0xe8, 0x48, 0xd0, 0xa4, 0x72, 0x5a, 0xd9, 0x9d, 0x0c, 0xaf,
-	0xc3, 0x9a, 0xf6, 0xce, 0x6a, 0xc2, 0xab, 0xf0, 0x9f, 0x0e, 0xcb, 0xe0, 0x35, 0x34, 0x54, 0xb5,
-	0xe8, 0xc9, 0x5c, 0x29, 0xeb, 0x0b, 0xcd, 0xff, 0xa5, 0x12, 0x0c, 0xa0, 0x30, 0x8f, 0x89, 0xa3,
-	0x43, 0xf9, 0xe7, 0x3f, 0xcb, 0xa9, 0x3a, 0x7a, 0x39, 0xe0, 0x47, 0x60, 0x29, 0xe6, 0x24, 0xe5,
-	0xf1, 0x3d, 0xca, 0xd0, 0xd4, 0x36, 0xb4, 0x14, 0xe5, 0x70, 0x9e, 0xce, 0x23, 0x4d, 0x8d, 0xe8,
-	0xcd, 0x9c, 0x6b, 0x41, 0xf3, 0x79, 0xc6, 0xd2, 0xcc, 0x0e, 0xb4, 0x15, 0x13, 0x8a, 0x6c, 0xcc,
-	0x2e, 0xe7, 0xa1, 0xd6, 0xe2, 0x5e, 0xd1, 0x78, 0x42, 0xff, 0x70, 0xe8, 0x76, 0x85, 0x0c, 0x8a,
-	0x34, 0xdd, 0xf5, 0x66, 0x6f, 0x57, 0xd6, 0x81, 0x9a, 0x60, 0x06, 0x43, 0x77, 0x60, 0x2f, 0xa1,
-	0x36, 0xac, 0x0c, 0x89, 0x3b, 0x3c, 0x26, 0xae, 0x6d, 0xc8, 0xd8, 0x3d, 0x77, 0xfb, 0x76, 0x0d,
-	0x75, 0x00, 0xc2, 0xe8, 0x34, 0xfa, 0xd8, 0xf7, 0x83, 0xd0, 0xb5, 0xeb, 0xa8, 0x05, 0x8d, 0x72,
-	0x69, 0xee, 0x9e, 0x57, 0x5e, 0x25, 0x6a, 0x41, 0xc3, 0x1b, 0x44, 0x47, 0x87, 0xa5, 0xe9, 0xc4,
-	0x0f, 0x8e, 0xe5, 0xa0, 0x4c, 0x4e, 0x10, 0xf8, 0x76, 0x4d, 0x12, 0xce, 0x87, 0xc8, 0x0d, 0xed,
-	0x3a, 0x02, 0x58, 0x0e, 0x23, 0xe2, 0x0d, 0xde, 0xd8, 0xa6, 0x04, 0x22, 0xef, 0xd4, 0xb5, 0x1b,
-	0x72, 0x35, 0x78, 0xef, 0xfb, 0xf6, 0xf2, 0xc1, 0x4b, 0xa8, 0x87, 0xef, 0x7c, 0xf4, 0x1c, 0xcc,
-	0x3e, 0x67, 0x0c, 0xad, 0xdd, 0x7b, 0xdd, 0x9b, 0xe8, 0x6e, 0x54, 0xbe, 0x85, 0x9e, 0xf1, 0xcc,
-	0x70, 0xec, 0xef, 0x37, 0x5d, 0xe3, 0xc7, 0x4d, 0xd7, 0xf8, 0x79, 0xd3, 0x35, 0xbe, 0xfd, 0xea,
-	0x2e, 0x7d, 0x5a, 0x56, 0xe0, 0x8b, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x4f, 0xf5, 0x7b, 0x82,
-	0x71, 0x04, 0x00, 0x00,
+	// 658 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x09, 0x6e, 0x88, 0x02, 0xff, 0xa4, 0x93, 0xcf, 0x6e, 0xd3, 0x4a,
+	0x14, 0x87, 0xeb, 0xfc, 0x6b, 0x72, 0xe2, 0x9b, 0x4e, 0xa7, 0xf7, 0x4a, 0x55, 0xaf, 0x94, 0xdb,
+	0x4e, 0xaf, 0x20, 0x74, 0xd1, 0x42, 0xa9, 0x2a, 0x36, 0x2c, 0xe2, 0xe0, 0x16, 0x0b, 0x27, 0x0e,
+	0x13, 0x53, 0x95, 0x15, 0x72, 0x93, 0x69, 0x65, 0xe1, 0x8c, 0x53, 0x7b, 0x02, 0xf4, 0x4d, 0x78,
+	0x24, 0x96, 0x3c, 0x02, 0x2a, 0x2f, 0x82, 0x66, 0xc6, 0x4e, 0x9b, 0x44, 0xc0, 0x82, 0xdd, 0x9c,
+	0x93, 0x2f, 0xdf, 0x19, 0xff, 0x7c, 0x0c, 0xff, 0x86, 0x5c, 0xb0, 0x84, 0x07, 0xd1, 0xc1, 0x24,
+	0x89, 0x45, 0x3c, 0x8c, 0xa3, 0x83, 0xf4, 0x3a, 0xda, 0x57, 0x05, 0xae, 0xe6, 0x3d, 0xf2, 0x12,
+	0x56, 0x29, 0xbb, 0x9e, 0xb2, 0x54, 0xe0, 0x47, 0x50, 0x1a, 0xc6, 0x23, 0xb6, 0x69, 0x6c, 0x1b,
+	0xad, 0xc6, 0xe1, 0x3f, 0xfb, 0x39, 0xb3, 0x9f, 0x01, 0x9d, 0x78, 0xc4, 0xa8, 0x42, 0x30, 0x86,
+	0xd2, 0x28, 0x10, 0xc1, 0x66, 0x61, 0xdb, 0x68, 0x99, 0x54, 0x9d, 0xc9, 0x0e, 0xd4, 0x33, 0xd0,
+	0x9b, 0x30, 0x2e, 0x11, 0x1e, 0x8c, 0xb5, 0xad, 0x46, 0xd5, 0x99, 0x3c, 0x80, 0x46, 0x86, 0xf4,
+	0x13, 0x36, 0x09, 0x12, 0x86, 0xff, 0x86, 0xf2, 0xf5, 0x94, 0x25, 0x37, 0x19, 0xa6, 0x0b, 0x62,
+	0xcd, 0x54, 0xf6, 0x27, 0x36, 0xc4, 0x0d, 0x28, 0x84, 0x23, 0x45, 0x14, 0x69, 0x21, 0x1c, 0xe1,
+	0x5d, 0x28, 0x05, 0xc9, 0x55, 0xba, 0x59, 0xd8, 0x2e, 0xb6, 0xea, 0x87, 0x6b, 0x77, 0x17, 0x3d,
+	0x0b, 0xa2, 0x29, 0xa3, 0xea, 0x47, 0x42, 0x00, 0x65, 0x8e, 0x81, 0x18, 0x8b, 0x4e, 0x14, 0xa7,
+	0x6c, 0x51, 0x44, 0x1a, 0x60, 0x66, 0x8c, 0xc5, 0xae, 0x42, 0x4e, 0xfe, 0x83, 0xbf, 0x66, 0xcf,
+	0x3a, 0x1e, 0x87, 0x62, 0xe9, 0x0f, 0x3b, 0xb0, 0x96, 0x01, 0x34, 0x8e, 0xa2, 0x8b, 0x60, 0xf8,
+	0xfe, 0x17, 0x4e, 0x35, 0x93, 0x38, 0x50, 0xa5, 0x2c, 0x9d, 0xc4, 0x3c, 0x65, 0x7f, 0x9a, 0xb0,
+	0x52, 0x6b, 0x95, 0x8c, 0x98, 0x3c, 0x97, 0xb7, 0xd1, 0x75, 0x9e, 0xe7, 0x62, 0x54, 0x5b, 0x50,
+	0xe5, 0xd3, 0xb1, 0xc3, 0x27, 0x53, 0xa1, 0x54, 0x45, 0x3a, 0xab, 0xc9, 0xd9, 0x9d, 0x4e, 0xc5,
+	0x4c, 0xc0, 0x74, 0x83, 0x54, 0x38, 0x3c, 0x65, 0x89, 0x70, 0x72, 0x8b, 0x19, 0xdd, 0xeb, 0x49,
+	0x86, 0xc6, 0x1f, 0xd3, 0xf6, 0xe5, 0x25, 0x1b, 0x0a, 0x36, 0xca, 0x9c, 0x66, 0x72, 0xaf, 0x47,
+	0x36, 0x60, 0x3d, 0xf7, 0xce, 0xa2, 0xd7, 0xd1, 0xea, 0xa6, 0xca, 0x7a, 0x29, 0x37, 0x24, 0x77,
+	0x43, 0x03, 0x3a, 0x7c, 0x82, 0xe5, 0x1b, 0xd4, 0x9d, 0x3c, 0x6d, 0xb2, 0x76, 0xa7, 0xd1, 0xde,
+	0x17, 0x50, 0x56, 0x6f, 0x1d, 0x3f, 0x9c, 0xcb, 0x76, 0x63, 0x61, 0x29, 0x7e, 0x93, 0x2c, 0x01,
+	0x50, 0x98, 0xc3, 0xc5, 0xf1, 0x91, 0x5c, 0xca, 0x0f, 0xb2, 0xca, 0x6e, 0xa7, 0x0b, 0xf2, 0x3f,
+	0x98, 0x8a, 0x39, 0x89, 0xe2, 0x60, 0x89, 0x32, 0x72, 0x6a, 0x07, 0x6a, 0x8a, 0xb2, 0xe2, 0x38,
+	0x9a, 0x47, 0xaa, 0x39, 0x92, 0x0f, 0xb3, 0x6e, 0x04, 0x4b, 0xe7, 0x19, 0x33, 0x67, 0x76, 0xa1,
+	0xae, 0x98, 0x81, 0x48, 0x42, 0x7e, 0x35, 0x0f, 0xd5, 0x16, 0x67, 0xf9, 0xe1, 0x98, 0xfd, 0xe4,
+	0xd2, 0xf5, 0x0c, 0xe9, 0x4d, 0xa3, 0x68, 0x8f, 0xcf, 0x3e, 0x2b, 0x19, 0x07, 0xae, 0x42, 0xc9,
+	0xeb, 0xdb, 0x3d, 0xb4, 0x82, 0xeb, 0xb0, 0xda, 0xa7, 0x76, 0xbf, 0x4d, 0x6d, 0x64, 0xc8, 0xb6,
+	0x7d, 0x6e, 0x77, 0x50, 0x01, 0x37, 0x00, 0x06, 0x7e, 0xd7, 0x7f, 0xd7, 0x71, 0xbd, 0x81, 0x8d,
+	0x8a, 0xb8, 0x06, 0x65, 0xcb, 0x3e, 0x75, 0x7a, 0xa8, 0x84, 0x01, 0x2a, 0x1d, 0xaf, 0xdb, 0x75,
+	0x7c, 0x54, 0xc6, 0x26, 0x54, 0xa9, 0xe7, 0xba, 0x56, 0xbb, 0xf3, 0x0a, 0x55, 0x24, 0xa4, 0xf9,
+	0xd5, 0xbd, 0xf3, 0x6c, 0xb8, 0x9a, 0x56, 0x83, 0xb2, 0xd3, 0xf3, 0x8f, 0x8f, 0xf4, 0xb8, 0x13,
+	0xd7, 0x6b, 0xcb, 0x42, 0x8d, 0xb3, 0x3c, 0xcf, 0x45, 0x05, 0xa5, 0x7f, 0xeb, 0xdb, 0x03, 0x54,
+	0x94, 0xfa, 0x81, 0x4f, 0x9d, 0xde, 0x29, 0x2a, 0x49, 0xc0, 0x77, 0xba, 0x36, 0x2a, 0xcb, 0x53,
+	0xef, 0x8d, 0xeb, 0xa2, 0xca, 0xe1, 0x33, 0x28, 0x0e, 0x5e, 0xbb, 0xf8, 0x09, 0x94, 0x3a, 0x31,
+	0xe7, 0x78, 0x7d, 0xe9, 0x4b, 0xda, 0xc2, 0xf7, 0x5b, 0x7a, 0x61, 0x5a, 0xc6, 0x63, 0xc3, 0x42,
+	0x5f, 0x6e, 0x9b, 0xc6, 0xd7, 0xdb, 0xa6, 0xf1, 0xed, 0xb6, 0x69, 0x7c, 0xfe, 0xde, 0x5c, 0xb9,
+	0xa8, 0x28, 0xf0, 0xe9, 0x8f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x25, 0xb3, 0x75, 0xa7, 0x31, 0x05,
+	0x00, 0x00,
 }

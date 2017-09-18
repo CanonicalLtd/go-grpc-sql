@@ -20,7 +20,10 @@ enum RequestCode {
   PREPARE    = 1;
   EXEC       = 2;
   STMT_CLOSE = 3;
-  CLOSE   =    4;
+  BEGIN      = 4;
+  COMMIT     = 5;
+  ROLLBACK   = 6;
+  CLOSE      = 7;
 }
 
 message RequestOpen {
@@ -38,6 +41,17 @@ message RequestExec {
 
 message RequestStmtClose {
   int64 id = 1; // ID of the prepared statement.
+}
+
+message RequestBegin {
+}
+
+message RequestCommit {
+  int64 id = 1;       // Numeric identifier of the transaction.
+}
+
+message RequestRollback {
+  int64 id = 1;       // Numeric identifier of the transaction.
 }
 
 message RequestClose {
@@ -63,6 +77,16 @@ message ResponseExec {
 }
 
 message ResponseStmtClose {
+}
+
+message ResponseBegin {
+  int64 id = 1; // ID of the newly created transaction.
+}
+
+message ResponseCommit {
+}
+
+message ResponseRollback {
 }
 
 message ResponseClose {

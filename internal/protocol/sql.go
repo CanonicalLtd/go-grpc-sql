@@ -29,6 +29,21 @@ func NewRequestStmtClose(id int64) *Request {
 	return newRequest(&RequestStmtClose{Id: id})
 }
 
+// NewRequestBegin creates a new Request of type RequestBegin.
+func NewRequestBegin() *Request {
+	return newRequest(&RequestBegin{})
+}
+
+// NewRequestCommit creates a new Request of type RequestCommit.
+func NewRequestCommit(id int64) *Request {
+	return newRequest(&RequestCommit{Id: id})
+}
+
+// NewRequestRollback creates a new Request of type RequestRollback.
+func NewRequestRollback(id int64) *Request {
+	return newRequest(&RequestRollback{Id: id})
+}
+
 // NewRequestClose creates a new Request of type RequestClose.
 func NewRequestClose() *Request {
 	return newRequest(&RequestClose{})
@@ -46,6 +61,12 @@ func newRequest(message proto.Message) *Request {
 		code = RequestCode_EXEC
 	case *RequestStmtClose:
 		code = RequestCode_STMT_CLOSE
+	case *RequestBegin:
+		code = RequestCode_BEGIN
+	case *RequestCommit:
+		code = RequestCode_COMMIT
+	case *RequestRollback:
+		code = RequestCode_ROLLBACK
 	case *RequestClose:
 		code = RequestCode_CLOSE
 	default:
@@ -88,6 +109,21 @@ func NewResponseStmtClose() *Response {
 	return newResponse(&ResponseStmtClose{})
 }
 
+// NewResponseBegin creates a new Response of type ResponseBegin.
+func NewResponseBegin(id int64) *Response {
+	return newResponse(&ResponseBegin{Id: id})
+}
+
+// NewResponseCommit creates a new Response of type ResponseCommit.
+func NewResponseCommit() *Response {
+	return newResponse(&ResponseCommit{})
+}
+
+// NewResponseRollback creates a new Response of type ResponseRollback.
+func NewResponseRollback() *Response {
+	return newResponse(&ResponseRollback{})
+}
+
 // NewResponseClose creates a new Response of type ResponseClose.
 func NewResponseClose() *Response {
 	return newResponse(&ResponseClose{})
@@ -103,6 +139,13 @@ func (r *Response) Prepare() *ResponsePrepare {
 // Exec returns a ResponseExec payload.
 func (r *Response) Exec() *ResponseExec {
 	message := &ResponseExec{}
+	r.unmarshal(message)
+	return message
+}
+
+// Begin returns a ResponseBegin payload.
+func (r *Response) Begin() *ResponseBegin {
+	message := &ResponseBegin{}
 	r.unmarshal(message)
 	return message
 }
@@ -123,6 +166,12 @@ func newResponse(message proto.Message) *Response {
 		code = RequestCode_PREPARE
 	case *ResponseExec:
 		code = RequestCode_EXEC
+	case *ResponseBegin:
+		code = RequestCode_BEGIN
+	case *ResponseCommit:
+		code = RequestCode_COMMIT
+	case *ResponseRollback:
+		code = RequestCode_ROLLBACK
 	case *ResponseStmtClose:
 		code = RequestCode_STMT_CLOSE
 	case *ResponseClose:

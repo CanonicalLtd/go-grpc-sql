@@ -42,7 +42,14 @@ func (c *Conn) Close() error {
 //
 // Deprecated: Drivers should implement ConnBeginTx instead (or additionally).
 func (c *Conn) Begin() (driver.Tx, error) {
-	tx := &Tx{}
+	response, err := c.exec(protocol.NewRequestBegin())
+	if err != nil {
+		return nil, err
+	}
+	tx := &Tx{
+		conn: c,
+		id:   response.Begin().Id,
+	}
 	return tx, nil
 }
 

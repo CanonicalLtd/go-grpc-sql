@@ -39,6 +39,7 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 			conn = &gatewayConn{
 				driver: s.driver,
 				stmts:  make(map[int64]driver.Stmt),
+				txs:    make(map[int64]driver.Tx),
 			}
 			defer conn.Close()
 		}
@@ -59,6 +60,7 @@ type gatewayConn struct {
 	driver     driver.Driver
 	driverConn driver.Conn
 	stmts      map[int64]driver.Stmt
+	txs        map[int64]driver.Tx
 	serial     int64
 }
 
@@ -75,6 +77,12 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestExec{}
 	case protocol.RequestCode_STMT_CLOSE:
 		message = &protocol.RequestStmtClose{}
+	case protocol.RequestCode_BEGIN:
+		message = &protocol.RequestBegin{}
+	case protocol.RequestCode_COMMIT:
+		message = &protocol.RequestCommit{}
+	case protocol.RequestCode_ROLLBACK:
+		message = &protocol.RequestRollback{}
 	case protocol.RequestCode_CLOSE:
 		message = &protocol.RequestClose{}
 	default:
@@ -99,6 +107,12 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		return c.handleExec(r)
 	case *protocol.RequestStmtClose:
 		return c.handleStmtClose(r)
+	case *protocol.RequestBegin:
+		return c.handleBegin(r)
+	case *protocol.RequestCommit:
+		return c.handleCommit(r)
+	case *protocol.RequestRollback:
+		return c.handleRollback(r)
 	case *protocol.RequestClose:
 		return c.handleClose(r)
 	default:
@@ -176,12 +190,56 @@ func (c *gatewayConn) handleStmtClose(request *protocol.RequestStmtClose) (*prot
 	if !ok {
 		return nil, fmt.Errorf("no prepared statement with ID %d", request.Id)
 	}
+	delete(c.stmts, request.Id)
 
 	if err := driverStmt.Close(); err != nil {
 		return nil, err
 	}
 
 	response := protocol.NewResponseStmtClose()
+	return response, nil
+}
+
+// Handle a request of type BEGIN.
+func (c *gatewayConn) handleBegin(request *protocol.RequestBegin) (*protocol.Response, error) {
+	driverTx, err := c.driverConn.Begin()
+	if err != nil {
+		return nil, err
+	}
+	c.serial++
+	c.txs[c.serial] = driverTx
+	return protocol.NewResponseBegin(c.serial), nil
+}
+
+// Handle a request of type COMMIT.
+func (c *gatewayConn) handleCommit(request *protocol.RequestCommit) (*protocol.Response, error) {
+	driverTx, ok := c.txs[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no transaction with ID %d", request.Id)
+	}
+	delete(c.txs, request.Id)
+
+	if err := driverTx.Commit(); err != nil {
+		return nil, err
+	}
+
+	response := protocol.NewResponseCommit()
+	return response, nil
+}
+
+// Handle a request of type ROLLBACK.
+func (c *gatewayConn) handleRollback(request *protocol.RequestRollback) (*protocol.Response, error) {
+	driverTx, ok := c.txs[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no transaction with ID %d", request.Id)
+	}
+	delete(c.txs, request.Id)
+
+	if err := driverTx.Rollback(); err != nil {
+		return nil, err
+	}
+
+	response := protocol.NewResponseRollback()
 	return response, nil
 }
 
