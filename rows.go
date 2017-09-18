@@ -24,7 +24,8 @@ func (r *Rows) Columns() []string {
 
 // Close closes the rows iterator.
 func (r *Rows) Close() error {
-	return nil
+	_, err := r.conn.exec(protocol.NewRequestRowsClose(r.id))
+	return err
 }
 
 // Next is called to populate the next row of data into

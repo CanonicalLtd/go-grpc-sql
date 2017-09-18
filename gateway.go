@@ -81,6 +81,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestQuery{}
 	case protocol.RequestCode_NEXT:
 		message = &protocol.RequestNext{}
+	case protocol.RequestCode_ROWS_CLOSE:
+		message = &protocol.RequestRowsClose{}
 	case protocol.RequestCode_STMT_CLOSE:
 		message = &protocol.RequestStmtClose{}
 	case protocol.RequestCode_BEGIN:
@@ -115,6 +117,8 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		return c.handleQuery(r)
 	case *protocol.RequestNext:
 		return c.handleNext(r)
+	case *protocol.RequestRowsClose:
+		return c.handleRowsClose(r)
 	case *protocol.RequestStmtClose:
 		return c.handleStmtClose(r)
 	case *protocol.RequestBegin:
@@ -240,6 +244,22 @@ func (c *gatewayConn) handleNext(request *protocol.RequestNext) (*protocol.Respo
 	}
 
 	return protocol.NewResponseNext(false, values), nil
+}
+
+// Handle a request of type NEXT.
+func (c *gatewayConn) handleRowsClose(request *protocol.RequestRowsClose) (*protocol.Response, error) {
+	driverRows, ok := c.rows[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no rows with ID %d", request.Id)
+	}
+	delete(c.rows, request.Id)
+
+	if err := driverRows.Close(); err != nil {
+		return nil, err
+	}
+
+	response := protocol.NewResponseRowsClose()
+	return response, nil
 }
 
 // Handle a request of type STMT_CLOSE.

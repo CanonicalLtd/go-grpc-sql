@@ -34,6 +34,11 @@ func NewRequestNext(id int64, n int64) *Request {
 	return newRequest(&RequestNext{Id: id, Len: n})
 }
 
+// NewRequestRowsClose creates a new Request of type RequestRowsClose.
+func NewRequestRowsClose(id int64) *Request {
+	return newRequest(&RequestRowsClose{Id: id})
+}
+
 // NewRequestStmtClose creates a new Request of type RequestStmtClose.
 func NewRequestStmtClose(id int64) *Request {
 	return newRequest(&RequestStmtClose{Id: id})
@@ -73,6 +78,8 @@ func newRequest(message proto.Message) *Request {
 		code = RequestCode_QUERY
 	case *RequestNext:
 		code = RequestCode_NEXT
+	case *RequestRowsClose:
+		code = RequestCode_ROWS_CLOSE
 	case *RequestStmtClose:
 		code = RequestCode_STMT_CLOSE
 	case *RequestBegin:
@@ -132,6 +139,11 @@ func NewResponseNext(eof bool, values []*Value) *Response {
 		Eof:    eof,
 		Values: values,
 	})
+}
+
+// NewResponseRowsClose creates a new Response of type ResponseRowsClose.
+func NewResponseRowsClose() *Response {
+	return newResponse(&ResponseRowsClose{})
 }
 
 // NewResponseStmtClose creates a new Response of type ResponseStmtClose.
@@ -214,6 +226,8 @@ func newResponse(message proto.Message) *Response {
 		code = RequestCode_QUERY
 	case *ResponseNext:
 		code = RequestCode_NEXT
+	case *ResponseRowsClose:
+		code = RequestCode_ROWS_CLOSE
 	case *ResponseBegin:
 		code = RequestCode_BEGIN
 	case *ResponseCommit:

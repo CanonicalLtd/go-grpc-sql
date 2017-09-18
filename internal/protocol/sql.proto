@@ -52,6 +52,10 @@ message RequestNext {
   int64 len = 2; // Number of columns to fetch.
 }
 
+message RequestRowsClose {
+  int64 id = 1;  // ID of the rows object.
+}
+
 message RequestStmtClose {
   int64 id = 1; // ID of the prepared statement.
 }
@@ -97,6 +101,9 @@ message ResponseQuery {
 message ResponseNext {
   bool eof = 1;
   repeated Value values = 2; // Column values.
+}
+
+message ResponseRowsClose {
 }
 
 message ResponseStmtClose {
