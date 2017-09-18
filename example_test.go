@@ -7,7 +7,7 @@ import (
 )
 
 func Example() {
-	db, err := sql.Open("grpc", "test")
+	db, err := sql.Open("grpc", "test?certfile=testdata/clientcert.pem&keyfile=testdata/clientkey.pem")
 	if err != nil {
 		log.Fatalf("failed to create grpc database: %s", err)
 	}

@@ -1,9 +1,14 @@
 package grpcsql
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+
+	"google.golang.org/grpc"
+)
 
 // Conn wraps a connection to a gRPC SQL gateway.
 type Conn struct {
+	grpcConn *grpc.ClientConn
 }
 
 // Prepare returns a prepared statement, bound to this connection.
@@ -16,7 +21,7 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 // prepared statements and transactions, marking this
 // connection as no longer in use.
 func (c *Conn) Close() error {
-	return nil
+	return c.grpcConn.Close()
 }
 
 // Begin starts and returns a new transaction.
