@@ -36,7 +36,7 @@ func TestGateway_ConnError(t *testing.T) {
 		},
 		{
 			`non-OPEN first request`,
-			[]*protocol.Request{protocol.NewRequestPrepare("foo")},
+			[]*protocol.Request{protocol.NewRequestPrepare("close")},
 			"expected OPEN request, got PREPARE",
 		},
 		{

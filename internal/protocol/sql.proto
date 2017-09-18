@@ -18,16 +18,24 @@ message Request {
 enum RequestCode {
   OPEN    = 0;
   PREPARE = 1;
+  EXEC    = 2;
+  CLOSE   = 3;
 }
 
-// Open a new driver connection.
 message RequestOpen {
   string name = 1; //  Data source name to pass to the SQL driver.
 }
 
-// Prepare a new query.
 message RequestPrepare {
   string query = 1;
+}
+
+message RequestExec {
+  int64 id = 1;            // ID of the prepared statement.
+  repeated Value args = 2; // Arguments to bind to the statement.
+}
+
+message RequestClose {
 }
 
 // A single response to a request.
@@ -36,16 +44,19 @@ message Response {
   bytes data = 2;       // Serialized response, maps to one of the ResponseXXX messages.
 }
 
-// Response for a RequestOpen.
 message ResponseOpen {
 }
 
+message ResponsePrepare {
+  int64 id = 1; // Numeric identifier of the new statement.
+}
 
-// Statement received via HTTP POST and meant to be executed by a SQL
-// database.
-message Statement {
-  string text = 1;         // Textual SQL to execute.
-  repeated Value args = 2; // Arguments to bind to the statement.
+message ResponseExec {
+  int64 LastInsertId = 1;
+  int64 RowsAffected = 2;
+}
+
+message ResponseClose {
 }
 
 // Value of a single statement argument or row column.

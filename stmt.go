@@ -1,10 +1,16 @@
 package grpcsql
 
-import "database/sql/driver"
+import (
+	"database/sql/driver"
+
+	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+)
 
 // Stmt is a prepared statement. It is bound to a Conn and not
 // used by multiple goroutines concurrently.
 type Stmt struct {
+	conn *Conn
+	id   int64
 }
 
 // Close closes the statement.
@@ -19,7 +25,20 @@ func (s *Stmt) NumInput() int {
 
 // Exec executes a query that doesn't return rows, such
 func (s *Stmt) Exec(args []driver.Value) (driver.Result, error) {
-	result := &Result{}
+	values, err := protocol.FromDriverValues(args)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := s.conn.exec(protocol.NewRequestExec(s.id, values))
+	if err != nil {
+		return nil, err
+	}
+
+	result := &Result{
+		lastInsertID: response.Exec().LastInsertId,
+		rowsAffected: response.Exec().RowsAffected,
+	}
 	return result, nil
 }
 

@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"time"
@@ -18,6 +19,16 @@ func NewRequestPrepare(query string) *Request {
 	return newRequest(&RequestPrepare{Query: query})
 }
 
+// NewRequestExec creates a new Request of type RequestExec.
+func NewRequestExec(id int64, args []*Value) *Request {
+	return newRequest(&RequestExec{Id: id, Args: args})
+}
+
+// NewRequestClose creates a new Request of type RequestClose.
+func NewRequestClose() *Request {
+	return newRequest(&RequestClose{})
+}
+
 // Create a new Request with the given payload.
 func newRequest(message proto.Message) *Request {
 	var code RequestCode
@@ -26,6 +37,10 @@ func newRequest(message proto.Message) *Request {
 		code = RequestCode_OPEN
 	case *RequestPrepare:
 		code = RequestCode_PREPARE
+	case *RequestExec:
+		code = RequestCode_EXEC
+	case *RequestClose:
+		code = RequestCode_CLOSE
 	default:
 		panic(fmt.Errorf("invalid message type: %s", reflect.TypeOf(message).Kind()))
 	}
@@ -48,12 +63,58 @@ func NewResponseOpen() *Response {
 	return newResponse(&ResponseOpen{})
 }
 
+// NewResponsePrepare creates a new Response of type ResponsePrepare.
+func NewResponsePrepare(id int64) *Response {
+	return newResponse(&ResponsePrepare{Id: id})
+}
+
+// NewResponseExec creates a new Response of type ResponseExec.
+func NewResponseExec(lastInsertID, rowsAffected int64) *Response {
+	return newResponse(&ResponseExec{
+		LastInsertId: lastInsertID,
+		RowsAffected: rowsAffected,
+	})
+}
+
+// NewResponseClose creates a new Response of type ResponseClose.
+func NewResponseClose() *Response {
+	return newResponse(&ResponseClose{})
+}
+
+// Prepare returns a ResponsePrepare payload.
+func (r *Response) Prepare() *ResponsePrepare {
+	message := &ResponsePrepare{}
+	r.unmarshal(message)
+	return message
+}
+
+// Exec returns a ResponseExec payload.
+func (r *Response) Exec() *ResponseExec {
+	message := &ResponseExec{}
+	r.unmarshal(message)
+	return message
+}
+
+func (r *Response) unmarshal(message proto.Message) {
+	if err := proto.Unmarshal(r.Data, message); err != nil {
+		panic(fmt.Errorf("failed to unmarshal response: %v", err))
+	}
+}
+
 // Create a new Response with the given payload.
 func newResponse(message proto.Message) *Response {
 	var code RequestCode
 	switch message.(type) {
 	case *ResponseOpen:
 		code = RequestCode_OPEN
+	case *ResponsePrepare:
+		code = RequestCode_PREPARE
+	case *ResponseExec:
+		code = RequestCode_EXEC
+	case *ResponseClose:
+		code = RequestCode_CLOSE
+	default:
+		panic(fmt.Errorf("invalid message type"))
 	}
 
 	data, err := proto.Marshal(message)
@@ -69,32 +130,23 @@ func newResponse(message proto.Message) *Response {
 	return response
 }
 
-// NewStatement creates a new Statement object with the given SQL text and
-// arguments.
-//
-// It returns an error if the given arguments contain one or more values of
-// unsupported type.
-func NewStatement(text string, args []interface{}) (*Statement, error) {
-	values, err := toValueSlice(args)
-	if err != nil {
-		return nil, err
+// FromDriverValues converts a slice of Go driver.Value objects of supported
+// types to a slice of protobuf Value objects.
+func FromDriverValues(objects []driver.Value) ([]*Value, error) {
+	values := make([]*Value, len(objects))
+	for i, object := range objects {
+		value, err := toValue(object)
+		if err != nil {
+			return nil, fmt.Errorf("cannot marshal object %d (%v): %s", i, object, err)
+		}
+		values[i] = value
 	}
-
-	stmt := &Statement{
-		Text: text,
-		Args: values,
-	}
-	return stmt, nil
+	return values, nil
 }
 
-// UnmarshalArgs deserializes the arguments of a SQL statement.
-func (s *Statement) UnmarshalArgs() ([]interface{}, error) {
-	return fromValueSlice(s.Args)
-}
-
-// Convert a slice of Go objects of supported types to a slice of protobuf
-// Value objects.
-func toValueSlice(objects []interface{}) ([]*Value, error) {
+// ToValueSlice converts a slice of Go objects of supported types to a slice of
+// protobuf Value objects.
+func ToValueSlice(objects []interface{}) ([]*Value, error) {
 	values := make([]*Value, len(objects))
 	for i, object := range objects {
 		value, err := toValue(object)
@@ -145,8 +197,23 @@ func toValue(value interface{}) (*Value, error) {
 	return &Value{Code: code, Data: data}, nil
 }
 
-// Convert a slice of protobuf Value objects to a slice of Go interface{} objects.
-func fromValueSlice(values []*Value) ([]interface{}, error) {
+// ToDriverValues converts a slice of protobuf Value objects to a slice of Go
+// driver.Value objects.
+func ToDriverValues(values []*Value) ([]driver.Value, error) {
+	args, err := FromValueSlice(values)
+	if err != nil {
+		return nil, err
+	}
+	a := make([]driver.Value, len(args))
+	for i, arg := range args {
+		a[i] = arg
+	}
+	return a, nil
+}
+
+// FromValueSlice converts a slice of protobuf Value objects to a slice of Go
+// interface{} objects.
+func FromValueSlice(values []*Value) ([]interface{}, error) {
 	objects := make([]interface{}, len(values))
 	for i, value := range values {
 		object, err := fromValue(value)

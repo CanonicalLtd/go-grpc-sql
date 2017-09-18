@@ -2,6 +2,7 @@ package grpcsql
 
 import (
 	"database/sql/driver"
+	"fmt"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"google.golang.org/grpc"
@@ -15,7 +16,14 @@ type Conn struct {
 
 // Prepare returns a prepared statement, bound to this connection.
 func (c *Conn) Prepare(query string) (driver.Stmt, error) {
-	stmt := &Stmt{}
+	response, err := c.exec(protocol.NewRequestPrepare(query))
+	if err != nil {
+		return nil, err
+	}
+	stmt := &Stmt{
+		conn: c,
+		id:   response.Prepare().Id,
+	}
 	return stmt, nil
 }
 
@@ -23,6 +31,9 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 // prepared statements and transactions, marking this
 // connection as no longer in use.
 func (c *Conn) Close() error {
+	if _, err := c.exec(protocol.NewRequestClose()); err != nil {
+		return err
+	}
 	return c.grpcConn.Close()
 }
 
@@ -32,4 +43,17 @@ func (c *Conn) Close() error {
 func (c *Conn) Begin() (driver.Tx, error) {
 	tx := &Tx{}
 	return tx, nil
+}
+
+// Execute a request and waits for the response.
+func (c *Conn) exec(request *protocol.Request) (*protocol.Response, error) {
+	if err := c.grpcConnClient.Send(request); err != nil {
+		return nil, fmt.Errorf("gRPC could not send %s request: %v", request.Code, err)
+	}
+
+	response, err := c.grpcConnClient.Recv()
+	if err != nil {
+		return nil, fmt.Errorf("gRPC %s response error: %v", request.Code, err)
+	}
+	return response, nil
 }

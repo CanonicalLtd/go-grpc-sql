@@ -1,6 +1,7 @@
 package protocol_test
 
 import (
+	"database/sql/driver"
 	"testing"
 	"time"
 
@@ -11,61 +12,59 @@ import (
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 )
 
-// Marshal statements with their arguments.
-func TestNewStatement(t *testing.T) {
+// Marshal driver.Value slices.
+func TestFromDriverValues(t *testing.T) {
 	cases := []struct {
-		title string
-		args  []interface{}
+		title   string
+		objects []driver.Value
 	}{
-		{`with string arg`, []interface{}{"hi"}},
-		{`with integer arg`, []interface{}{int64(123)}},
-		{`with float arg`, []interface{}{float64(0.123)}},
-		{`with bool arg`, []interface{}{true}},
-		{`with time arg`, []interface{}{time.Unix(12345, 0)}},
-		{`with NULL arg`, []interface{}{nil}},
-		{`with multiple args`, []interface{}{"hi", int64(123), float64(0.123), nil, true}},
+		{`string`, []driver.Value{"hi"}},
+		{`int64`, []driver.Value{int64(123)}},
+		{`float64`, []driver.Value{float64(0.123)}},
+		{`bool`, []driver.Value{true}},
+		{`time`, []driver.Value{time.Unix(12345, 0)}},
+		{`nil`, []driver.Value{nil}},
+		{`multiple`, []driver.Value{"hi", int64(123), float64(0.123), nil, true}},
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			stmt, err := protocol.NewStatement("SQL TEXT", c.args)
+			values, err := protocol.FromDriverValues(c.objects)
 			require.NoError(t, err)
 
-			assert.Equal(t, "SQL TEXT", stmt.Text)
-
-			args, err := stmt.UnmarshalArgs()
+			objects, err := protocol.ToDriverValues(values)
 			require.NoError(t, err)
 
-			assert.Equal(t, c.args, args)
+			assert.Equal(t, c.objects, objects)
 		})
 	}
 }
 
-// Test failure modes when creating a new Statement object.
-func TestNewStatement_Error(t *testing.T) {
+// Test failure modes when marshaling driver.Value objects.
+func TestFromDriverValues_Error(t *testing.T) {
 	cases := []struct {
-		title string
-		args  []interface{}
-		err   string
+		title   string
+		objects []driver.Value
+		err     string
 	}{
 		{
 			`invalid argument type`,
-			[]interface{}{int32(123)},
+			[]driver.Value{int32(123)},
 			"cannot marshal object 0 (123): invalid type int32",
 		},
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			_, err := protocol.NewStatement("SQL TEXT", c.args)
+			_, err := protocol.FromDriverValues(c.objects)
 			assert.EqualError(t, err, c.err)
 		})
 	}
 }
 
-// Test failure modes when unmarshalling statement arguments.
-func TestStatement_UnmarshalArgsError(t *testing.T) {
+// Test failure modes when unmarshalling driver.Value objects
+func TestToDriverValues_Error(t *testing.T) {
 	cases := []struct {
 		title string
-		arg   protocol.Value
+		value protocol.Value
 		err   string
 	}{
 		{
@@ -81,8 +80,7 @@ func TestStatement_UnmarshalArgsError(t *testing.T) {
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			stmt := &protocol.Statement{Args: []*protocol.Value{&c.arg}}
-			_, err := stmt.UnmarshalArgs()
+			_, err := protocol.ToDriverValues([]*protocol.Value{&c.value})
 			assert.EqualError(t, err, c.err)
 		})
 	}

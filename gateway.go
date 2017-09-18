@@ -1,7 +1,6 @@
 package grpcsql
 
 import (
-	"context"
 	"database/sql/driver"
 	"fmt"
 	"io"
@@ -17,9 +16,9 @@ type Gateway struct {
 
 // NewGateway creates a new gRPC gateway executing requests against the given
 // SQL driver.
-func NewGateway(driver driver.Driver) *Gateway {
+func NewGateway(drv driver.Driver) *Gateway {
 	return &Gateway{
-		driver: driver,
+		driver: drv,
 	}
 }
 
@@ -37,7 +36,10 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 		}
 
 		if conn == nil {
-			conn = &gatewayConn{driver: s.driver, ctx: stream.Context()}
+			conn = &gatewayConn{
+				driver: s.driver,
+				stmts:  make(map[int64]driver.Stmt),
+			}
 			defer conn.Close()
 		}
 
@@ -54,9 +56,10 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 
 // Track a single driver connection
 type gatewayConn struct {
-	ctx        context.Context
 	driver     driver.Driver
 	driverConn driver.Conn
+	stmts      map[int64]driver.Stmt
+	serial     int64
 }
 
 // Handle a single gRPC request for this connection.
@@ -68,6 +71,10 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestOpen{}
 	case protocol.RequestCode_PREPARE:
 		message = &protocol.RequestPrepare{}
+	case protocol.RequestCode_EXEC:
+		message = &protocol.RequestExec{}
+	case protocol.RequestCode_CLOSE:
+		message = &protocol.RequestClose{}
 	default:
 		return nil, fmt.Errorf("invalid request code %d", request.Code)
 	}
@@ -86,6 +93,10 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 		return c.handleOpen(r)
 	case *protocol.RequestPrepare:
 		return c.handlePrepare(r)
+	case *protocol.RequestExec:
+		return c.handleExec(r)
+	case *protocol.RequestClose:
+		return c.handleClose(r)
 	default:
 		panic("unhandled request payload type")
 	}
@@ -114,9 +125,53 @@ func (c *gatewayConn) handleOpen(request *protocol.RequestOpen) (*protocol.Respo
 
 // Handle a request of type PREPARE.
 func (c *gatewayConn) handlePrepare(request *protocol.RequestPrepare) (*protocol.Response, error) {
-	_, err := c.driverConn.Prepare(request.Query)
+	stmt, err := c.driverConn.Prepare(request.Query)
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+	c.serial++
+	c.stmts[c.serial] = stmt
+	return protocol.NewResponsePrepare(c.serial), nil
+}
+
+// Handle a request of type EXEC.
+func (c *gatewayConn) handleExec(request *protocol.RequestExec) (*protocol.Response, error) {
+	driverStmt, ok := c.stmts[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no prepared statement with ID %d", request.Id)
+	}
+
+	args, err := protocol.ToDriverValues(request.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := driverStmt.Exec(args)
+	if err != nil {
+		return nil, err
+	}
+
+	lastInsertID, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+
+	response := protocol.NewResponseExec(lastInsertID, rowsAffected)
+
+	return response, nil
+}
+
+// Handle a request of type CLOSE.
+func (c *gatewayConn) handleClose(request *protocol.RequestClose) (*protocol.Response, error) {
+	if err := c.driverConn.Close(); err != nil {
+		return nil, err
+	}
+
+	response := protocol.NewResponseClose()
+	return response, nil
 }

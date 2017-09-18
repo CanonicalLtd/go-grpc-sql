@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"log"
 	"net/http/httptest"
+	"testing"
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mattn/go-sqlite3"
 )
 
-func Example() {
+func TestExample(t *testing.T) {
 	driver := &sqlite3.SQLiteDriver{}
 	server := httptest.NewUnstartedServer(grpcsql.NewServer(driver))
 	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
@@ -22,7 +23,7 @@ func Example() {
 	options := &grpcsql.DialOptions{
 		Address:    server.Listener.Addr().String(),
 		Name:       ":memory:",
-		Timeout:    5 * time.Second,
+		Timeout:    2 * time.Second,
 		CertFile:   "testdata/clientcert.pem",
 		KeyFile:    "testdata/clientkey.pem",
 		SkipVerify: true,
@@ -56,5 +57,5 @@ func Example() {
 	// false
 	fmt.Println(result.LastInsertId())
 	fmt.Println(result.RowsAffected())
-	fmt.Println(rows.Next())
+	//fmt.Println(rows.Next())
 }

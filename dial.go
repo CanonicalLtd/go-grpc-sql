@@ -85,36 +85,32 @@ func dial(options *DialOptions) (*Conn, error) {
 	grpcOptions := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
-	grpcCtx := context.Background()
+	grpcDialCtx := context.Background()
 	if options.Timeout != 0 {
 		var cancel func()
-		grpcCtx, cancel = context.WithTimeout(grpcCtx, options.Timeout)
+		grpcDialCtx, cancel = context.WithTimeout(grpcDialCtx, options.Timeout)
 		defer cancel()
 
 	}
 
-	grpcConn, err := grpc.DialContext(grpcCtx, grpcTarget, grpcOptions...)
+	grpcConn, err := grpc.DialContext(grpcDialCtx, grpcTarget, grpcOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("gRPC connection failed: %v", err)
 	}
 
 	grpcClient := protocol.NewSQLClient(grpcConn)
-	grpcConnClient, err := grpcClient.Conn(grpcCtx)
+	grpcConnClient, err := grpcClient.Conn(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("gRPC conn method failed: %v", err)
-	}
-
-	if err := grpcConnClient.Send(protocol.NewRequestOpen(options.Name)); err != nil {
-		return nil, fmt.Errorf("gRPC could not send open request: %v", err)
-	}
-
-	if _, err := grpcConnClient.Recv(); err != nil {
-		return nil, fmt.Errorf("gRPC open response error: %v", err)
 	}
 
 	conn := &Conn{
 		grpcConn:       grpcConn,
 		grpcConnClient: grpcConnClient,
+	}
+
+	if _, err := conn.exec(protocol.NewRequestOpen(options.Name)); err != nil {
+		return nil, fmt.Errorf("gRPC could not send open request: %v", err)
 	}
 
 	return conn, nil
