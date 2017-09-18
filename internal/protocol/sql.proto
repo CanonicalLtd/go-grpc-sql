@@ -2,6 +2,17 @@ syntax = "proto3";
 
 package protocol;
 
+// Interface exported by a gRPC SQL gateway.
+service SQL {
+  rpc Conn(stream Request) returns (stream Response);
+}
+
+message Request {
+}
+
+message Response {
+}
+
 // Statement received via HTTP POST and meant to be executed by a SQL
 // database.
 message Statement {
