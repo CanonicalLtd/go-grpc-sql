@@ -125,13 +125,13 @@ func (c *gatewayConn) handleOpen(request *protocol.RequestOpen) (*protocol.Respo
 
 // Handle a request of type PREPARE.
 func (c *gatewayConn) handlePrepare(request *protocol.RequestPrepare) (*protocol.Response, error) {
-	stmt, err := c.driverConn.Prepare(request.Query)
+	driverStmt, err := c.driverConn.Prepare(request.Query)
 	if err != nil {
 		return nil, err
 	}
 	c.serial++
-	c.stmts[c.serial] = stmt
-	return protocol.NewResponsePrepare(c.serial), nil
+	c.stmts[c.serial] = driverStmt
+	return protocol.NewResponsePrepare(c.serial, driverStmt.NumInput()), nil
 }
 
 // Handle a request of type EXEC.

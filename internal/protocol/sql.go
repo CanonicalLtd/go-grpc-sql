@@ -64,8 +64,8 @@ func NewResponseOpen() *Response {
 }
 
 // NewResponsePrepare creates a new Response of type ResponsePrepare.
-func NewResponsePrepare(id int64) *Response {
-	return newResponse(&ResponsePrepare{Id: id})
+func NewResponsePrepare(id int64, numInput int) *Response {
+	return newResponse(&ResponsePrepare{Id: id, NumInput: int64(numInput)})
 }
 
 // NewResponseExec creates a new Response of type ResponseExec.

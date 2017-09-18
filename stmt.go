@@ -9,8 +9,9 @@ import (
 // Stmt is a prepared statement. It is bound to a Conn and not
 // used by multiple goroutines concurrently.
 type Stmt struct {
-	conn *Conn
-	id   int64
+	conn     *Conn
+	id       int64
+	numInput int
 }
 
 // Close closes the statement.
@@ -20,7 +21,7 @@ func (s *Stmt) Close() error {
 
 // NumInput returns the number of placeholder parameters.
 func (s *Stmt) NumInput() int {
-	return 0
+	return s.numInput
 }
 
 // Exec executes a query that doesn't return rows, such

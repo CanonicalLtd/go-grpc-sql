@@ -21,8 +21,9 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 		return nil, err
 	}
 	stmt := &Stmt{
-		conn: c,
-		id:   response.Prepare().Id,
+		conn:     c,
+		id:       response.Prepare().Id,
+		numInput: int(response.Prepare().NumInput),
 	}
 	return stmt, nil
 }

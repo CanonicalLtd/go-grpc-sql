@@ -48,7 +48,8 @@ message ResponseOpen {
 }
 
 message ResponsePrepare {
-  int64 id = 1; // Numeric identifier of the new statement.
+  int64 id = 1;       // Numeric identifier of the new statement.
+  int64 numInput = 2; // Number of placeholder parameters.
 }
 
 message ResponseExec {
