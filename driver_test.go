@@ -1,8 +1,10 @@
 package grpcsql_test
 
 import (
-	"database/sql"
+	"database/sql/driver"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mpvl/subtest"
@@ -10,67 +12,111 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// A global driver object is registered under the name "grpc".
-func TestDriver_Registration(t *testing.T) {
-	conn, err := sql.Open("grpc", "foo")
-	assert.NoError(t, err)
-	assert.NoError(t, conn.Close())
+// Open a new gRPC connection.
+func TestDriver_Open(t *testing.T) {
+	driver, server := newDriver()
+	defer server.Close()
+
+	conn, err := driver.Open(":memory:")
+	require.NoError(t, err)
+	defer conn.Close()
+}
+
+// If one of the targets fails, the next is tried.
+func TestDriver_OpenRoundRobin(t *testing.T) {
+	server := newGatewayServer()
+	targetsFunc := func() ([]string, error) {
+		return []string{
+			"1.2.3.4",
+			server.Listener.Addr().String(),
+		}, nil
+	}
+	driver := grpcsql.NewDriver(targetsFunc, tlsConfig, 2*time.Second)
+	defer server.Close()
+
+	conn, err := driver.Open(":memory:")
+	require.NoError(t, err)
+	defer conn.Close()
+}
+
+// Create a transaction and commit it.
+func TestDriver_TxCommit(t *testing.T) {
+	driver, server := newDriver()
+	defer server.Close()
+
+	conn, err := driver.Open(":memory:")
+	require.NoError(t, err)
+	defer conn.Close()
+
+	tx, err := conn.Begin()
+	require.NoError(t, err)
+	assert.NoError(t, tx.Commit())
+}
+
+// Error happening upon Conn.Begin.
+func TestDriver_BeginError(t *testing.T) {
+	driver, server := newDriver()
+	defer server.Close()
+
+	conn, err := driver.Open(":memory:")
+	require.NoError(t, err)
+	defer conn.Close()
+
+	_, err = conn.Begin()
+	require.NoError(t, err)
+
+	// Trying to run a second BEGIN will fail.
+	_, err = conn.Begin()
+	require.NotNil(t, err)
+	assert.Contains(t, err.Error(), "cannot start a transaction within a transaction")
 }
 
 // Open a new gRPC connection.
-/*func TestDriver_Open(t *testing.T) {
-	address, cleanup := newServer()
-	defer cleanup()
-
-	driver := &grpcsql.Driver{}
-	_, err := driver.Open(address)
+func TestDriver_BadConn(t *testing.T) {
+	drv, server := newDriver()
+	conn, err := drv.Open(":memory:")
 	assert.NoError(t, err)
-}*/
+	defer conn.Close()
+
+	// Shutdown the server to interrupt the gRPC connection.
+	server.CloseClientConnections()
+
+	stmt, err := conn.Prepare("SELECT * FROM sqlite_master")
+	assert.Nil(t, stmt)
+	assert.Equal(t, driver.ErrBadConn, err)
+}
 
 // Possible failure modes of Driver.Open().
 func TestDriver_OpenError(t *testing.T) {
 	cases := []struct {
-		title string
-		name  string
-		err   string
+		title       string
+		targetsFunc grpcsql.TargetsFunc
+		err         string
 	}{
 		{
 			"invalid escape",
-			"1.2.3.4?%gh&%ij",
-			"failed to parse query params",
-		},
-		{
-			"timeout parse error",
-			"1.2.3.4:1234?timeout=1woop",
-			"invalid timeout",
-		},
-		{
-			"connection timeout",
-			"1.2.3.4:1234?timeout=1ns",
-			"gRPC connection failed",
-		},
-		{
-			"invalid client certificate",
-			"1.2.3.4?certfile=/dev/null",
-			"failed to load client certificate",
-		},
-		{
-			"non-existing root certificate",
-			"1.2.3.4?rootcertfile=/this/path/does/not/exists",
-			"failed to read root certificate",
-		},
-		{
-			"invalid root certificate",
-			"1.2.3.4?rootcertfile=/dev/null",
-			"failed to parse root certificate",
+			func() ([]string, error) {
+				return []string{"1.2.3.4"}, nil
+			},
+			"gRPC conn method failed",
 		},
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			driver := &grpcsql.Driver{}
-			_, err := driver.Open(c.name)
+			driver := grpcsql.NewDriver(c.targetsFunc, tlsConfig, time.Millisecond)
+			_, err := driver.Open(":memory:")
 			require.NotNil(t, err)
 			assert.Contains(t, err.Error(), c.err)
 		})
 	}
+}
+
+// Return a new Driver instance configured to connect to a test gRPC server.
+func newDriver() (*grpcsql.Driver, *httptest.Server) {
+	server := newGatewayServer()
+	targetsFunc := func() ([]string, error) {
+		return []string{server.Listener.Addr().String()}, nil
+	}
+	driver := grpcsql.NewDriver(targetsFunc, tlsConfig, 2*time.Second)
+	return driver, server
 }

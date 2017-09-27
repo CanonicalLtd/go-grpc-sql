@@ -7,6 +7,7 @@ import (
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/golang/protobuf/proto"
+	"github.com/pkg/errors"
 )
 
 // Gateway mapping gRPC requests to SQL queries.
@@ -32,7 +33,7 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 			return nil
 		}
 		if err != nil {
-			return fmt.Errorf("failed to receive request: %v", err)
+			return errors.Wrapf(err, "failed to receive request")
 		}
 
 		if conn == nil {
@@ -47,11 +48,11 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 
 		response, err := conn.Handle(request)
 		if err != nil {
-			return fmt.Errorf("failed to handle %s request: %v", request.Code, err)
+			return errors.Wrapf(err, "failed to handle %s request", request.Code)
 		}
 
 		if err := stream.Send(response); err != nil {
-			return fmt.Errorf("failed to send response: %v", err)
+			return errors.Wrapf(err, "failed to send response")
 		}
 	}
 }
@@ -98,7 +99,7 @@ func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, err
 	}
 
 	if err := proto.Unmarshal(request.Data, message); err != nil {
-		return nil, fmt.Errorf("request parse error: %v", err)
+		return nil, errors.Wrapf(err, "request parse error")
 	}
 
 	// The very first request must be an OPEN one.

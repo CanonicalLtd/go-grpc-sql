@@ -2,16 +2,18 @@ package grpcsql
 
 import (
 	"database/sql/driver"
-	"fmt"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 // Conn wraps a connection to a gRPC SQL gateway.
 type Conn struct {
 	grpcConn       *grpc.ClientConn
 	grpcConnClient protocol.SQL_ConnClient
+	grpcConnDoomed bool // Whether the connection should be considered broken.
 }
 
 // Prepare returns a prepared statement, bound to this connection.
@@ -55,13 +57,30 @@ func (c *Conn) Begin() (driver.Tx, error) {
 
 // Execute a request and waits for the response.
 func (c *Conn) exec(request *protocol.Request) (*protocol.Response, error) {
+	if c.grpcConnDoomed {
+		// This means that we previously failed because of a connection
+		// error, so we want to just fail again (since the sql package
+		// retries ErrBadConn).
+		return nil, driver.ErrBadConn
+	}
+
 	if err := c.grpcConnClient.Send(request); err != nil {
-		return nil, fmt.Errorf("gRPC could not send %s request: %v", request.Code, err)
+		return nil, c.errorf(err, "gRPC could not send %s request", request.Code)
 	}
 
 	response, err := c.grpcConnClient.Recv()
 	if err != nil {
-		return nil, fmt.Errorf("gRPC %s response error: %v", request.Code, err)
+		return nil, c.errorf(err, "gRPC %s response error", request.Code)
 	}
 	return response, nil
+}
+
+// If the given error is due to the gRPC endpoint being unavailable, return
+// ErrBadConn and mark the connection as doomed, otherwise return the original error.
+func (c *Conn) errorf(err error, format string, v ...interface{}) error {
+	if grpc.Code(err) == codes.Unavailable {
+		c.grpcConnDoomed = true
+		return driver.ErrBadConn
+	}
+	return errors.Wrapf(err, format, v...)
 }

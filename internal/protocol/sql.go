@@ -244,7 +244,7 @@ func newResponse(message proto.Message) *Response {
 
 	data, err := proto.Marshal(message)
 	if err != nil {
-		panic(fmt.Errorf("cannot marshal %s response", code))
+		panic(fmt.Sprintf("cannot marshal %s response", code))
 	}
 
 	response := &Response{

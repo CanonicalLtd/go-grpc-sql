@@ -77,16 +77,12 @@ func TestGateway_ConnError(t *testing.T) {
 // Create a new protocol.SQL_ConnClient stream connected to a Gateway backed by a
 // SQLite driver.
 func newGatewayClient() (protocol.SQL_ConnClient, func()) {
-	driver := &sqlite3.SQLiteDriver{}
-	server := httptest.NewUnstartedServer(grpcsql.NewServer(driver))
-	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
-	server.StartTLS()
+	server := newGatewayServer()
 
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 	options := []grpc.DialOption{
 		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(2*time.Second))
 	conn, err := grpc.Dial(server.Listener.Addr().String(), options...)
 
 	if err != nil {
@@ -94,6 +90,7 @@ func newGatewayClient() (protocol.SQL_ConnClient, func()) {
 	}
 
 	client := protocol.NewSQLClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(2*time.Second))
 	cleanup := func() {
 		cancel()
 		conn.Close()
@@ -106,4 +103,14 @@ func newGatewayClient() (protocol.SQL_ConnClient, func()) {
 	}
 
 	return connClient, cleanup
+}
+
+// Create a new test HTTP server whose handler is set to a grpc-sql gateway
+// backed by a SQLite driver.
+func newGatewayServer() *httptest.Server {
+	handler := grpcsql.NewServer(&sqlite3.SQLiteDriver{})
+	server := httptest.NewUnstartedServer(handler)
+	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
+	server.StartTLS()
+	return server
 }

@@ -13,21 +13,18 @@ import (
 )
 
 func Example() {
-	driver := &sqlite3.SQLiteDriver{}
-	server := httptest.NewUnstartedServer(grpcsql.NewServer(driver))
+	server := httptest.NewUnstartedServer(grpcsql.NewServer(&sqlite3.SQLiteDriver{}))
 	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
 	server.StartTLS()
 	defer server.Close()
 
-	options := &grpcsql.DialOptions{
-		Address:    server.Listener.Addr().String(),
-		Name:       ":memory:",
-		Timeout:    2 * time.Second,
-		CertFile:   "testdata/clientcert.pem",
-		KeyFile:    "testdata/clientkey.pem",
-		SkipVerify: true,
+	targetsFunc := func() ([]string, error) {
+		return []string{server.Listener.Addr().String()}, nil
 	}
-	db, err := sql.Open("grpc", options.String())
+	driver := grpcsql.NewDriver(targetsFunc, tlsConfig, 2*time.Second)
+	sql.Register("grpc", driver)
+
+	db, err := sql.Open("grpc", ":memory:")
 	if err != nil {
 		log.Fatalf("failed to create grpc database: %s", err)
 	}
