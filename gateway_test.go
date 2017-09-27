@@ -44,14 +44,6 @@ func TestGateway_ConnError(t *testing.T) {
 			[]*protocol.Request{protocol.NewRequestOpen("/etc")},
 			"could not open driver connection",
 		},
-		{
-			`invalid prepared query`,
-			[]*protocol.Request{
-				protocol.NewRequestOpen(":memory:"),
-				protocol.NewRequestPrepare("foo"),
-			},
-			"failed to handle PREPARE request",
-		},
 	}
 
 	for _, c := range cases {

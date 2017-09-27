@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
+	"github.com/mattn/go-sqlite3"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -68,7 +69,10 @@ func TestDriver_BeginError(t *testing.T) {
 	// Trying to run a second BEGIN will fail.
 	_, err = conn.Begin()
 	require.NotNil(t, err)
-	assert.Contains(t, err.Error(), "cannot start a transaction within a transaction")
+	sqliteErr, ok := err.(sqlite3.Error)
+	require.True(t, ok)
+	assert.Equal(t, sqlite3.ErrNo(1), sqliteErr.Code)
+	assert.Equal(t, "cannot start a transaction within a transaction", sqliteErr.Error())
 }
 
 // Open a new gRPC connection.

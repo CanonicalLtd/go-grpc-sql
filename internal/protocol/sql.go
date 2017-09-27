@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"reflect"
 	"time"
+	"unsafe"
 
 	"github.com/golang/protobuf/proto"
+	"github.com/mattn/go-sqlite3"
 )
 
 // NewRequestOpen creates a new Request of type RequestOpen.
@@ -171,6 +173,15 @@ func NewResponseClose() *Response {
 	return newResponse(&ResponseClose{})
 }
 
+// NewResponseSQLiteError creates a new Response of type ResponseSQLiteError.
+func NewResponseSQLiteError(code sqlite3.ErrNo, extendedCode sqlite3.ErrNoExtended, err string) *Response {
+	return newResponse(&ResponseSQLiteError{
+		Code:         int32(code),
+		ExtendedCode: int32(extendedCode),
+		Err:          err,
+	})
+}
+
 // Prepare returns a ResponsePrepare payload.
 func (r *Response) Prepare() *ResponsePrepare {
 	message := &ResponsePrepare{}
@@ -206,6 +217,29 @@ func (r *Response) Begin() *ResponseBegin {
 	return message
 }
 
+// SQLiteError returns a ResponseSQLiteError payload.
+func (r *Response) SQLiteError() sqlite3.Error {
+	message := &ResponseSQLiteError{}
+	r.unmarshal(message)
+
+	// FIXME: unfortunately the err attribute of sqlite3.Error is private,
+	// so it's not possible to instantiate a sqlite3.Error with a custom
+	// error string, so we create a structure which exactly the same as
+	// sqlite3.Error and conver it to sqlite3.Error using the unsafe
+	// package.
+	err := struct {
+		Code         int
+		ExtendedCode int
+		err          string
+	}{
+		Code:         int(message.Code),
+		ExtendedCode: int(message.ExtendedCode),
+		err:          message.Err,
+	}
+
+	return *(*sqlite3.Error)(unsafe.Pointer(&err))
+}
+
 func (r *Response) unmarshal(message proto.Message) {
 	if err := proto.Unmarshal(r.Data, message); err != nil {
 		panic(fmt.Errorf("failed to unmarshal response: %v", err))
@@ -238,6 +272,8 @@ func newResponse(message proto.Message) *Response {
 		code = RequestCode_STMT_CLOSE
 	case *ResponseClose:
 		code = RequestCode_CLOSE
+	case *ResponseSQLiteError:
+		code = RequestCode_SQLITE_ERROR
 	default:
 		panic(fmt.Errorf("invalid message type"))
 	}

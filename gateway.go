@@ -7,6 +7,7 @@ import (
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/golang/protobuf/proto"
+	sqlite3 "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
 
@@ -46,9 +47,16 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 			defer conn.Close()
 		}
 
-		response, err := conn.Handle(request)
+		response, err := conn.handle(request)
 		if err != nil {
-			return errors.Wrapf(err, "failed to handle %s request", request.Code)
+			// TODO: add support for more driver-specific errors.
+			switch err := err.(type) {
+			case sqlite3.Error:
+				response = protocol.NewResponseSQLiteError(
+					err.Code, err.ExtendedCode, err.Error())
+			default:
+				return errors.Wrapf(err, "failed to handle %s request", request.Code)
+			}
 		}
 
 		if err := stream.Send(response); err != nil {
@@ -68,7 +76,7 @@ type gatewayConn struct {
 }
 
 // Handle a single gRPC request for this connection.
-func (c *gatewayConn) Handle(request *protocol.Request) (*protocol.Response, error) {
+func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, error) {
 	var message proto.Message
 
 	switch request.Code {

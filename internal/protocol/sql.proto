@@ -27,6 +27,9 @@ enum RequestCode {
   COMMIT     = 8;
   ROLLBACK   = 9;
   CLOSE      = 10;
+
+  // XXX error codes should be part of a separate ResponseCode enum.
+  SQLITE_ERROR = 11;
 }
 
 message RequestOpen {
@@ -121,6 +124,13 @@ message ResponseRollback {
 
 message ResponseClose {
 }
+
+message ResponseSQLiteError {
+  int32 code = 1;
+  int32 extended_code = 2;
+  string err = 3;
+}
+
 
 // Value of a single statement argument or row column.
 message Value {
