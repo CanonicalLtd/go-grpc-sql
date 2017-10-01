@@ -7,7 +7,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-// NewServer is a convenience for creating a gRPC server with a registered SQL gateway.
+// NewServer is a convenience for creating a gRPC server with a registered SQL
+// gateway backed by the given driver.
 func NewServer(driver driver.Driver) *grpc.Server {
 	gateway := NewGateway(driver)
 	server := grpc.NewServer()

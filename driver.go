@@ -2,13 +2,9 @@ package grpcsql
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql/driver"
-	"fmt"
-	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/pkg/errors"
@@ -17,18 +13,14 @@ import (
 // Driver implements the database/sql/driver interface and executes the
 // relevant statements over gRPC.
 type Driver struct {
-	targetsFunc TargetsFunc
-	tlsConfig   *tls.Config
-	timeout     time.Duration
+	dialer Dialer
 }
 
-// NewDriver creates a new gRPC SQL driver for connecting to the given backend
+// NewDriver creates a new gRPC SQL driver for creating connections to backend
 // gateways.
-func NewDriver(targetsFunc TargetsFunc, tlsConfig *tls.Config, timeout time.Duration) *Driver {
+func NewDriver(dialer Dialer) *Driver {
 	return &Driver{
-		targetsFunc: targetsFunc,
-		tlsConfig:   tlsConfig,
-		timeout:     timeout,
+		dialer: dialer,
 	}
 }
 
@@ -36,36 +28,18 @@ func NewDriver(targetsFunc TargetsFunc, tlsConfig *tls.Config, timeout time.Dura
 // tried round-robin when creating a new connection in Driver.Conn.
 type TargetsFunc func() ([]string, error)
 
+// Dialer is a function that can create a gRPC connection.
+type Dialer func() (conn *grpc.ClientConn, err error)
+
 // Open a new connection against a gRPC SQL server.
 //
-// The given data source name must be in the form:
+// To establish the gRPC connection, the dialer passed to NewDriver() will
+// used.
 //
-// <host>[:<port>][?<options>]
-//
-// where valid options are:
-//
-// - certfile: cert file location
-// - certkey: key file location
-// - rootcertfile: location of the root certificate file
-//
-// Note that the connection will always use TLS, so valid TLS parameters for
-// the target endpoint are required.
+// The given data source name must be one that the driver attached to the
+//remote Gateway can understand.
 func (d *Driver) Open(name string) (driver.Conn, error) {
-	targets, err := d.targetsFunc()
-	if err != nil {
-		return nil, errors.Wrapf(err, "cannot get gRPC targets")
-	}
-	if len(targets) == 0 {
-		return nil, fmt.Errorf("no gRPC target available")
-	}
-
-	var conn *Conn
-	for _, target := range targets {
-		conn, err = d.dial(target, name)
-		if err != nil {
-			continue
-		}
-	}
+	conn, err := dial(d.dialer, name)
 	if err != nil {
 		return nil, err
 	}
@@ -74,19 +48,8 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 }
 
 // Create a new connection to a gRPC endpoint.
-func (d *Driver) dial(target string, name string) (*Conn, error) {
-	grpcOptions := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewTLS(d.tlsConfig)),
-	}
-	grpcCtx := context.Background()
-	if d.timeout != 0 {
-		var cancel func()
-		grpcCtx, cancel = context.WithTimeout(grpcCtx, d.timeout)
-		defer cancel()
-
-	}
-
-	grpcConn, err := grpc.DialContext(grpcCtx, target, grpcOptions...)
+func dial(dialer Dialer, name string) (*Conn, error) {
+	grpcConn, err := dialer()
 	if err != nil {
 		return nil, errors.Wrapf(err, "gRPC grpcConnection failed")
 	}

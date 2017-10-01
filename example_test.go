@@ -1,27 +1,30 @@
 package grpcsql_test
 
 import (
-	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"log"
-	"net/http/httptest"
-	"time"
+	"net"
+
+	"google.golang.org/grpc"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mattn/go-sqlite3"
 )
 
 func Example() {
-	server := httptest.NewUnstartedServer(grpcsql.NewServer(&sqlite3.SQLiteDriver{}))
-	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
-	server.StartTLS()
-	defer server.Close()
-
-	targetsFunc := func() ([]string, error) {
-		return []string{server.Listener.Addr().String()}, nil
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		log.Fatalf("failed to create listener: %v", err)
 	}
-	driver := grpcsql.NewDriver(targetsFunc, tlsConfig, 2*time.Second)
+	server := grpcsql.NewServer(&sqlite3.SQLiteDriver{})
+	go server.Serve(listener)
+	defer server.Stop()
+
+	dialer := func() (*grpc.ClientConn, error) {
+		return grpc.Dial(listener.Addr().String(), grpc.WithInsecure())
+	}
+	driver := grpcsql.NewDriver(dialer)
 	sql.Register("grpc", driver)
 
 	db, err := sql.Open("grpc", ":memory:")

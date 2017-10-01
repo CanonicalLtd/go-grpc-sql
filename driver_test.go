@@ -2,9 +2,9 @@ package grpcsql_test
 
 import (
 	"database/sql/driver"
-	"net/http/httptest"
 	"testing"
-	"time"
+
+	"google.golang.org/grpc"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
 	"github.com/mattn/go-sqlite3"
@@ -15,25 +15,8 @@ import (
 
 // Open a new gRPC connection.
 func TestDriver_Open(t *testing.T) {
-	driver, server := newDriver()
-	defer server.Close()
-
-	conn, err := driver.Open(":memory:")
-	require.NoError(t, err)
-	defer conn.Close()
-}
-
-// If one of the targets fails, the next is tried.
-func TestDriver_OpenRoundRobin(t *testing.T) {
-	server := newGatewayServer()
-	targetsFunc := func() ([]string, error) {
-		return []string{
-			"1.2.3.4",
-			server.Listener.Addr().String(),
-		}, nil
-	}
-	driver := grpcsql.NewDriver(targetsFunc, tlsConfig, 2*time.Second)
-	defer server.Close()
+	driver, cleanup := newDriver()
+	defer cleanup()
 
 	conn, err := driver.Open(":memory:")
 	require.NoError(t, err)
@@ -42,8 +25,8 @@ func TestDriver_OpenRoundRobin(t *testing.T) {
 
 // Create a transaction and commit it.
 func TestDriver_TxCommit(t *testing.T) {
-	driver, server := newDriver()
-	defer server.Close()
+	driver, cleanup := newDriver()
+	defer cleanup()
 
 	conn, err := driver.Open(":memory:")
 	require.NoError(t, err)
@@ -56,8 +39,8 @@ func TestDriver_TxCommit(t *testing.T) {
 
 // Error happening upon Conn.Begin.
 func TestDriver_BeginError(t *testing.T) {
-	driver, server := newDriver()
-	defer server.Close()
+	driver, cleanup := newDriver()
+	defer cleanup()
 
 	conn, err := driver.Open(":memory:")
 	require.NoError(t, err)
@@ -77,13 +60,14 @@ func TestDriver_BeginError(t *testing.T) {
 
 // Open a new gRPC connection.
 func TestDriver_BadConn(t *testing.T) {
-	drv, server := newDriver()
+	drv, cleanup := newDriver()
+
 	conn, err := drv.Open(":memory:")
 	assert.NoError(t, err)
 	defer conn.Close()
 
 	// Shutdown the server to interrupt the gRPC connection.
-	server.CloseClientConnections()
+	cleanup()
 
 	stmt, err := conn.Prepare("SELECT * FROM sqlite_master")
 	assert.Nil(t, stmt)
@@ -93,21 +77,21 @@ func TestDriver_BadConn(t *testing.T) {
 // Possible failure modes of Driver.Open().
 func TestDriver_OpenError(t *testing.T) {
 	cases := []struct {
-		title       string
-		targetsFunc grpcsql.TargetsFunc
-		err         string
+		title  string
+		dialer grpcsql.Dialer
+		err    string
 	}{
 		{
-			"invalid escape",
-			func() ([]string, error) {
-				return []string{"1.2.3.4"}, nil
+			"gRPC connection failed",
+			func() (*grpc.ClientConn, error) {
+				return grpc.Dial("1.2.3.4", grpc.WithInsecure())
 			},
 			"gRPC conn method failed",
 		},
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			driver := grpcsql.NewDriver(c.targetsFunc, tlsConfig, time.Millisecond)
+			driver := grpcsql.NewDriver(c.dialer)
 			_, err := driver.Open(":memory:")
 			require.NotNil(t, err)
 			assert.Contains(t, err.Error(), c.err)
@@ -116,11 +100,12 @@ func TestDriver_OpenError(t *testing.T) {
 }
 
 // Return a new Driver instance configured to connect to a test gRPC server.
-func newDriver() (*grpcsql.Driver, *httptest.Server) {
-	server := newGatewayServer()
-	targetsFunc := func() ([]string, error) {
-		return []string{server.Listener.Addr().String()}, nil
+func newDriver() (*grpcsql.Driver, func()) {
+	server, address := newGatewayServer()
+	dialer := func() (*grpc.ClientConn, error) {
+		return grpc.Dial(address, grpc.WithInsecure())
 	}
-	driver := grpcsql.NewDriver(targetsFunc, tlsConfig, 2*time.Second)
-	return driver, server
+	driver := grpcsql.NewDriver(dialer)
+	cleanup := func() { server.Stop() }
+	return driver, cleanup
 }

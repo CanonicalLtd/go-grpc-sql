@@ -2,9 +2,8 @@ package grpcsql_test
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
-	"net/http/httptest"
+	"net"
 	"testing"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 func TestGateway_ConnError(t *testing.T) {
@@ -66,17 +64,12 @@ func TestGateway_ConnError(t *testing.T) {
 	}
 }
 
-// Create a new protocol.SQL_ConnClient stream connected to a Gateway backed by a
-// SQLite driver.
+// Create a new protocol.SQL_ConnClient stream connected to a Gateway backed by
+// a SQLite driver.
 func newGatewayClient() (protocol.SQL_ConnClient, func()) {
-	server := newGatewayServer()
+	server, address := newGatewayServer()
 
-	tlsConfig := &tls.Config{InsecureSkipVerify: true}
-	options := []grpc.DialOption{
-		grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)),
-	}
-	conn, err := grpc.Dial(server.Listener.Addr().String(), options...)
-
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		panic(fmt.Errorf("failed to create gRPC connection: %v", err))
 	}
@@ -86,7 +79,7 @@ func newGatewayClient() (protocol.SQL_ConnClient, func()) {
 	cleanup := func() {
 		cancel()
 		conn.Close()
-		server.Close()
+		server.Stop()
 	}
 
 	connClient, err := client.Conn(ctx)
@@ -97,12 +90,16 @@ func newGatewayClient() (protocol.SQL_ConnClient, func()) {
 	return connClient, cleanup
 }
 
-// Create a new test HTTP server whose handler is set to a grpc-sql gateway
-// backed by a SQLite driver.
-func newGatewayServer() *httptest.Server {
-	handler := grpcsql.NewServer(&sqlite3.SQLiteDriver{})
-	server := httptest.NewUnstartedServer(handler)
-	server.TLS = &tls.Config{NextProtos: []string{"h2"}}
-	server.StartTLS()
-	return server
+// Create a new test gRPC server attached to a grpc-sql gateway backed by a
+// SQLite driver.
+//
+// Return the newly created server and its network address.
+func newGatewayServer() (*grpc.Server, string) {
+	listener, err := net.Listen("tcp", ":0")
+	if err != nil {
+		panic(fmt.Sprintf("failed to create listener: %v", err))
+	}
+	server := grpcsql.NewServer(&sqlite3.SQLiteDriver{})
+	go server.Serve(listener)
+	return server, listener.Addr().String()
 }
