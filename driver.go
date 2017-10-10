@@ -1,13 +1,12 @@
 package grpcsql
 
 import (
-	"context"
 	"database/sql/driver"
-
-	"google.golang.org/grpc"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/pkg/errors"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 // Driver implements the database/sql/driver interface and executes the

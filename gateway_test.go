@@ -1,7 +1,6 @@
 package grpcsql_test
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
