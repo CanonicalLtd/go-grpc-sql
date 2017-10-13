@@ -2,7 +2,6 @@ package grpcsql
 
 import (
 	"database/sql/driver"
-	"fmt"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/pkg/errors"
@@ -75,7 +74,6 @@ func (c *Conn) exec(request *protocol.Request) (*protocol.Response, error) {
 	}
 	switch response.Code {
 	case protocol.RequestCode_SQLITE_ERROR:
-		fmt.Println("got response", int(response.SQLiteError().Code))
 		return nil, response.SQLiteError()
 	}
 	return response, nil
