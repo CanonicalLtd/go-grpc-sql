@@ -39,17 +39,17 @@ func Example() {
 	}
 	defer tx.Rollback()
 
-	result, err := tx.Exec("CREATE TABLE test (n INTEGER)")
+	result, err := tx.Exec("CREATE TABLE test (n INTEGER); INSERT INTO test(n) VALUES (1)")
 	if err != nil {
 		log.Fatalf("failed to execute create table statement over grpc: %s", err)
 	}
 
-	result, err = tx.Exec("INSERT INTO test(n) VALUES (1)")
+	result, err = tx.Exec("INSERT INTO test(n) VALUES (2)")
 	if err != nil {
 		log.Fatalf("failed to execute insert statement over grpc: %s", err)
 	}
 
-	rows, err := tx.Query("SELECT n FROM test")
+	rows, err := tx.Query("SELECT n FROM test ORDER BY n")
 	if err != nil {
 		log.Fatalf("failed to select rows over grpc: %s", err)
 	}
@@ -77,10 +77,10 @@ func Example() {
 	defer rows.Close()
 
 	// Output:
-	// 1 <nil>
+	// 2 <nil>
 	// 1 <nil>
 	// INTEGER
-	// [1]
+	// [1 2]
 	fmt.Println(result.LastInsertId())
 	fmt.Println(result.RowsAffected())
 	fmt.Println(name)

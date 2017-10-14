@@ -29,9 +29,10 @@ enum RequestCode {
   COMMIT                         = 10;
   ROLLBACK                       = 11;
   CLOSE                          = 12;
+  CONN_EXEC                      = 13;
 
   // XXX error codes should be part of a separate ResponseCode enum.
-  SQLITE_ERROR = 13;
+  SQLITE_ERROR = 14;
 }
 
 message RequestOpen {
@@ -87,6 +88,11 @@ message RequestRollback {
 }
 
 message RequestClose {
+}
+
+message RequestConnExec {
+  string query = 1;        // The statement to execute.
+  repeated Value args = 2; // Arguments to bind to the statement.
 }
 
 // A single response to a request.

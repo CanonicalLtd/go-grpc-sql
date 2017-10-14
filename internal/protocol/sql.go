@@ -76,6 +76,11 @@ func NewRequestClose() *Request {
 	return newRequest(&RequestClose{})
 }
 
+// NewRequestConnExec creates a new Request of type RequestConnExec.
+func NewRequestConnExec(query string, args []*Value) *Request {
+	return newRequest(&RequestConnExec{Query: query, Args: args})
+}
+
 // Create a new Request with the given payload.
 func newRequest(message proto.Message) *Request {
 	var code RequestCode
@@ -106,6 +111,8 @@ func newRequest(message proto.Message) *Request {
 		code = RequestCode_ROLLBACK
 	case *RequestClose:
 		code = RequestCode_CLOSE
+	case *RequestConnExec:
+		code = RequestCode_CONN_EXEC
 	default:
 		panic(fmt.Errorf("invalid message type: %s", reflect.TypeOf(message).Kind()))
 	}

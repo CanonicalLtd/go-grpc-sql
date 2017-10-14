@@ -106,6 +106,8 @@ func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestRollback{}
 	case protocol.RequestCode_CLOSE:
 		message = &protocol.RequestClose{}
+	case protocol.RequestCode_CONN_EXEC:
+		message = &protocol.RequestConnExec{}
 	default:
 		return nil, fmt.Errorf("invalid request code %d", request.Code)
 	}
@@ -146,6 +148,8 @@ func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, err
 		return c.handleRollback(r)
 	case *protocol.RequestClose:
 		return c.handleClose(r)
+	case *protocol.RequestConnExec:
+		return c.handleConnExec(r)
 	default:
 		panic("unhandled request payload type")
 	}
@@ -378,5 +382,36 @@ func (c *gatewayConn) handleClose(request *protocol.RequestClose) (*protocol.Res
 	}
 
 	response := protocol.NewResponseClose()
+	return response, nil
+}
+
+// Handle a request of type CONN_EXEC.
+func (c *gatewayConn) handleConnExec(request *protocol.RequestConnExec) (*protocol.Response, error) {
+	args, err := protocol.ToDriverValues(request.Args)
+	if err != nil {
+		return nil, err
+	}
+
+	execer, ok := c.driverConn.(driver.Execer)
+	if !ok {
+		return nil, fmt.Errorf("backend driver does not implement driver.Execer")
+	}
+	result, err := execer.Exec(request.Query, args)
+	if err != nil {
+		return nil, err
+	}
+
+	lastInsertID, err := result.LastInsertId()
+	if err != nil {
+		return nil, err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+
+	response := protocol.NewResponseExec(lastInsertID, rowsAffected)
+
 	return response, nil
 }

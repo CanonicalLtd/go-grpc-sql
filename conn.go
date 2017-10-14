@@ -30,6 +30,27 @@ func (c *Conn) Prepare(query string) (driver.Stmt, error) {
 	return stmt, nil
 }
 
+// Exec may return ErrSkip.
+//
+// Deprecated: Drivers should implement ExecerContext instead (or additionally).
+func (c *Conn) Exec(query string, args []driver.Value) (driver.Result, error) {
+	values, err := protocol.FromDriverValues(args)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := c.exec(protocol.NewRequestConnExec(query, values))
+	if err != nil {
+		return nil, err
+	}
+
+	result := &Result{
+		lastInsertID: response.Exec().LastInsertId,
+		rowsAffected: response.Exec().RowsAffected,
+	}
+	return result, nil
+}
+
 // Close invalidates and potentially stops any current
 // prepared statements and transactions, marking this
 // connection as no longer in use.
