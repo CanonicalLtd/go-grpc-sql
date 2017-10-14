@@ -36,6 +36,16 @@ func NewRequestNext(id int64, n int64) *Request {
 	return newRequest(&RequestNext{Id: id, Len: n})
 }
 
+// NewRequestColumnTypeScanType creates a new Request of type ColumnTypeScanType.
+func NewRequestColumnTypeScanType(id int64, column int64) *Request {
+	return newRequest(&RequestColumnTypeScanType{Id: id, Column: column})
+}
+
+// NewRequestColumnTypeDatabaseTypeName creates a new Request of type ColumnTypeDatabaseTypeName.
+func NewRequestColumnTypeDatabaseTypeName(id int64, column int64) *Request {
+	return newRequest(&RequestColumnTypeDatabaseTypeName{Id: id, Column: column})
+}
+
 // NewRequestRowsClose creates a new Request of type RequestRowsClose.
 func NewRequestRowsClose(id int64) *Request {
 	return newRequest(&RequestRowsClose{Id: id})
@@ -80,6 +90,10 @@ func newRequest(message proto.Message) *Request {
 		code = RequestCode_QUERY
 	case *RequestNext:
 		code = RequestCode_NEXT
+	case *RequestColumnTypeScanType:
+		code = RequestCode_COLUMN_TYPE_SCAN_TYPE
+	case *RequestColumnTypeDatabaseTypeName:
+		code = RequestCode_COLUMN_TYPE_DATABASE_TYPE_NAME
 	case *RequestRowsClose:
 		code = RequestCode_ROWS_CLOSE
 	case *RequestStmtClose:
@@ -140,6 +154,20 @@ func NewResponseNext(eof bool, values []*Value) *Response {
 	return newResponse(&ResponseNext{
 		Eof:    eof,
 		Values: values,
+	})
+}
+
+// NewResponseColumnTypeScanType creates a new Response of type ResponseColumnTypeScanType.
+func NewResponseColumnTypeScanType(code ValueCode) *Response {
+	return newResponse(&ResponseColumnTypeScanType{
+		Code: code,
+	})
+}
+
+// NewResponseColumnTypeDatabaseTypeName creates a new Response of type ResponseColumnTypeDatabaseTypeName.
+func NewResponseColumnTypeDatabaseTypeName(name string) *Response {
+	return newResponse(&ResponseColumnTypeDatabaseTypeName{
+		Name: name,
 	})
 }
 
@@ -210,6 +238,20 @@ func (r *Response) Next() *ResponseNext {
 	return message
 }
 
+// ColumnTypeScanType returns a ResponseColumnTypeScanType payload.
+func (r *Response) ColumnTypeScanType() *ResponseColumnTypeScanType {
+	message := &ResponseColumnTypeScanType{}
+	r.unmarshal(message)
+	return message
+}
+
+// ColumnTypeDatabaseTypeName returns a ResponseColumnTypeDatabaseTypeName payload.
+func (r *Response) ColumnTypeDatabaseTypeName() *ResponseColumnTypeDatabaseTypeName {
+	message := &ResponseColumnTypeDatabaseTypeName{}
+	r.unmarshal(message)
+	return message
+}
+
 // Begin returns a ResponseBegin payload.
 func (r *Response) Begin() *ResponseBegin {
 	message := &ResponseBegin{}
@@ -260,6 +302,10 @@ func newResponse(message proto.Message) *Response {
 		code = RequestCode_QUERY
 	case *ResponseNext:
 		code = RequestCode_NEXT
+	case *ResponseColumnTypeScanType:
+		code = RequestCode_COLUMN_TYPE_SCAN_TYPE
+	case *ResponseColumnTypeDatabaseTypeName:
+		code = RequestCode_COLUMN_TYPE_DATABASE_TYPE_NAME
 	case *ResponseRowsClose:
 		code = RequestCode_ROWS_CLOSE
 	case *ResponseBegin:
@@ -317,6 +363,54 @@ func ToValueSlice(objects []interface{}) ([]*Value, error) {
 		values[i] = value
 	}
 	return values, nil
+}
+
+// ToValueCode converts a Go type object into its serialized code number.
+func ToValueCode(t reflect.Type) ValueCode {
+	var code ValueCode
+	switch t {
+	case reflect.TypeOf(int64(0)):
+		code = ValueCode_INT64
+	case reflect.TypeOf(float64(0)):
+		code = ValueCode_FLOAT64
+	case reflect.TypeOf(false):
+		code = ValueCode_BOOL
+	case reflect.TypeOf(byte(0)):
+		code = ValueCode_BYTES
+	case reflect.TypeOf(""):
+		code = ValueCode_STRING
+	case reflect.TypeOf(time.Time{}):
+		code = ValueCode_TIME
+	case reflect.TypeOf(nil):
+		code = ValueCode_NULL
+	default:
+		code = ValueCode_BYTES
+	}
+	return code
+}
+
+// FromValueCode converts a serialized value type code into a Go type object.
+func FromValueCode(code ValueCode) reflect.Type {
+	var t reflect.Type
+	switch code {
+	case ValueCode_INT64:
+		t = reflect.TypeOf(int64(0))
+	case ValueCode_FLOAT64:
+		t = reflect.TypeOf(float64(0))
+	case ValueCode_BOOL:
+		t = reflect.TypeOf(false)
+	case ValueCode_BYTES:
+		t = reflect.TypeOf(byte(0))
+	case ValueCode_STRING:
+		t = reflect.TypeOf("")
+	case ValueCode_TIME:
+		t = reflect.TypeOf(time.Time{})
+	case ValueCode_NULL:
+		t = reflect.TypeOf(nil)
+	default:
+		t = reflect.TypeOf(byte(0))
+	}
+	return t
 }
 
 // Convert a Go object of a supported type to a protobuf Value object.

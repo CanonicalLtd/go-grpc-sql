@@ -3,6 +3,7 @@ package grpcsql
 import (
 	"database/sql/driver"
 	"io"
+	"reflect"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 )
@@ -51,4 +52,22 @@ func (r *Rows) Next(dest []driver.Value) error {
 		dest[i] = value
 	}
 	return nil
+}
+
+// ColumnTypeScanType implements RowsColumnTypeScanType.
+func (r *Rows) ColumnTypeScanType(i int) reflect.Type {
+	response, err := r.conn.exec(protocol.NewRequestColumnTypeScanType(r.id, int64(i)))
+	if err != nil {
+		return reflect.Type(nil)
+	}
+	return protocol.FromValueCode(response.ColumnTypeScanType().Code)
+}
+
+// ColumnTypeDatabaseTypeName implements RowsColumnTypeDatabaseTypeName.
+func (r *Rows) ColumnTypeDatabaseTypeName(i int) string {
+	response, err := r.conn.exec(protocol.NewRequestColumnTypeDatabaseTypeName(r.id, int64(i)))
+	if err != nil {
+		return ""
+	}
+	return response.ColumnTypeDatabaseTypeName().Name
 }

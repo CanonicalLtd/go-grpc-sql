@@ -16,20 +16,22 @@ message Request {
 // RequestCode is a numberic code identifying the SQL gRPC request to
 // handle.
 enum RequestCode {
-  OPEN       = 0;
-  PREPARE    = 1;
-  EXEC       = 2;
-  QUERY      = 3;
-  NEXT       = 4;
-  ROWS_CLOSE = 5;
-  STMT_CLOSE = 6;
-  BEGIN      = 7;
-  COMMIT     = 8;
-  ROLLBACK   = 9;
-  CLOSE      = 10;
+  OPEN                           = 0;
+  PREPARE                        = 1;
+  EXEC                           = 2;
+  QUERY                          = 3;
+  NEXT                           = 4;
+  ROWS_CLOSE                     = 5;
+  COLUMN_TYPE_SCAN_TYPE          = 6;
+  COLUMN_TYPE_DATABASE_TYPE_NAME = 7;
+  STMT_CLOSE                     = 8;
+  BEGIN                          = 9;
+  COMMIT                         = 10;
+  ROLLBACK                       = 11;
+  CLOSE                          = 12;
 
   // XXX error codes should be part of a separate ResponseCode enum.
-  SQLITE_ERROR = 11;
+  SQLITE_ERROR = 13;
 }
 
 message RequestOpen {
@@ -53,6 +55,16 @@ message RequestQuery {
 message RequestNext {
   int64 id = 1;  // ID of the rows object.
   int64 len = 2; // Number of columns to fetch.
+}
+
+message RequestColumnTypeScanType {
+  int64 id = 1;     // ID of the rows object.
+  int64 column = 2; // Index of the column to fetch the type of.
+}
+
+message RequestColumnTypeDatabaseTypeName {
+  int64 id = 1;     // ID of the rows object.
+  int64 column = 2; // Index of the column to fetch the type name of.
 }
 
 message RequestRowsClose {
@@ -104,6 +116,14 @@ message ResponseQuery {
 message ResponseNext {
   bool eof = 1;
   repeated Value values = 2; // Column values.
+}
+
+message ResponseColumnTypeScanType {
+  ValueCode code = 1; // Column type code.
+}
+
+message ResponseColumnTypeDatabaseTypeName {
+  string name = 1; // Column type name.
 }
 
 message ResponseRowsClose {

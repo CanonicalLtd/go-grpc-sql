@@ -90,6 +90,10 @@ func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, err
 		message = &protocol.RequestQuery{}
 	case protocol.RequestCode_NEXT:
 		message = &protocol.RequestNext{}
+	case protocol.RequestCode_COLUMN_TYPE_SCAN_TYPE:
+		message = &protocol.RequestColumnTypeScanType{}
+	case protocol.RequestCode_COLUMN_TYPE_DATABASE_TYPE_NAME:
+		message = &protocol.RequestColumnTypeDatabaseTypeName{}
 	case protocol.RequestCode_ROWS_CLOSE:
 		message = &protocol.RequestRowsClose{}
 	case protocol.RequestCode_STMT_CLOSE:
@@ -126,6 +130,10 @@ func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, err
 		return c.handleQuery(r)
 	case *protocol.RequestNext:
 		return c.handleNext(r)
+	case *protocol.RequestColumnTypeScanType:
+		return c.handleColumnTypeScanType(r)
+	case *protocol.RequestColumnTypeDatabaseTypeName:
+		return c.handleColumnTypeDatabaseTypeName(r)
 	case *protocol.RequestRowsClose:
 		return c.handleRowsClose(r)
 	case *protocol.RequestStmtClose:
@@ -255,7 +263,40 @@ func (c *gatewayConn) handleNext(request *protocol.RequestNext) (*protocol.Respo
 	return protocol.NewResponseNext(false, values), nil
 }
 
-// Handle a request of type NEXT.
+// Handle a request of type COLUMN_TYPE_SCAN_TYPE.
+func (c *gatewayConn) handleColumnTypeScanType(request *protocol.RequestColumnTypeScanType) (*protocol.Response, error) {
+	driverRows, ok := c.rows[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no rows with ID %d", request.Id)
+	}
+
+	code := protocol.ValueCode_BYTES
+	typeScanner, ok := driverRows.(driver.RowsColumnTypeScanType)
+	if ok {
+		typ := typeScanner.ColumnTypeScanType(int(request.Column))
+		code = protocol.ToValueCode(typ)
+	}
+
+	return protocol.NewResponseColumnTypeScanType(code), nil
+}
+
+// Handle a request of type COLUMN_TYPE_DATABASE_TYPE_NAME.
+func (c *gatewayConn) handleColumnTypeDatabaseTypeName(request *protocol.RequestColumnTypeDatabaseTypeName) (*protocol.Response, error) {
+	driverRows, ok := c.rows[request.Id]
+	if !ok {
+		return nil, fmt.Errorf("no rows with ID %d", request.Id)
+	}
+
+	name := ""
+	nameScanner, ok := driverRows.(driver.RowsColumnTypeDatabaseTypeName)
+	if ok {
+		name = nameScanner.ColumnTypeDatabaseTypeName(int(request.Column))
+	}
+
+	return protocol.NewResponseColumnTypeDatabaseTypeName(name), nil
+}
+
+// Handle a request of type ROWS_CLOSE.
 func (c *gatewayConn) handleRowsClose(request *protocol.RequestRowsClose) (*protocol.Response, error) {
 	driverRows, ok := c.rows[request.Id]
 	if !ok {

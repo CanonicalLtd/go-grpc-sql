@@ -2,6 +2,7 @@ package protocol_test
 
 import (
 	"database/sql/driver"
+	"reflect"
 	"testing"
 	"time"
 
@@ -85,4 +86,50 @@ func TestToDriverValues_Error(t *testing.T) {
 		})
 	}
 
+}
+
+// Marshal reflect.Type into ValueCode.
+func TestToValueCode(t *testing.T) {
+	cases := []struct {
+		title string
+		typ   reflect.Type
+		code  protocol.ValueCode
+	}{
+		{`string`, reflect.TypeOf(""), protocol.ValueCode_STRING},
+		{`int64`, reflect.TypeOf(int64(0)), protocol.ValueCode_INT64},
+		{`float64`, reflect.TypeOf(float64(0)), protocol.ValueCode_FLOAT64},
+		{`bool`, reflect.TypeOf(false), protocol.ValueCode_BOOL},
+		{`bytes`, reflect.TypeOf(byte(0)), protocol.ValueCode_BYTES},
+		{`time`, reflect.TypeOf(time.Time{}), protocol.ValueCode_TIME},
+		{`nil`, reflect.TypeOf(nil), protocol.ValueCode_NULL},
+	}
+	for _, c := range cases {
+		subtest.Run(t, c.title, func(t *testing.T) {
+			code := protocol.ToValueCode(c.typ)
+			assert.Equal(t, c.code, code)
+		})
+	}
+}
+
+// Unmarshal ValueCode into reflect.Type.
+func TestFromValueCode(t *testing.T) {
+	cases := []struct {
+		title string
+		typ   reflect.Type
+		code  protocol.ValueCode
+	}{
+		{`string`, reflect.TypeOf(""), protocol.ValueCode_STRING},
+		{`int64`, reflect.TypeOf(int64(0)), protocol.ValueCode_INT64},
+		{`float64`, reflect.TypeOf(float64(0)), protocol.ValueCode_FLOAT64},
+		{`bool`, reflect.TypeOf(false), protocol.ValueCode_BOOL},
+		{`bytes`, reflect.TypeOf(byte(0)), protocol.ValueCode_BYTES},
+		{`time`, reflect.TypeOf(time.Time{}), protocol.ValueCode_TIME},
+		{`nil`, reflect.TypeOf(nil), protocol.ValueCode_NULL},
+	}
+	for _, c := range cases {
+		subtest.Run(t, c.title, func(t *testing.T) {
+			typ := protocol.FromValueCode(c.code)
+			assert.Equal(t, c.typ, typ)
+		})
+	}
 }

@@ -39,20 +39,30 @@ func Example() {
 	}
 	defer tx.Rollback()
 
-	result, err := tx.Exec("CREATE TABLE test (n INT)")
+	result, err := tx.Exec("CREATE TABLE test (n INTEGER)")
 	if err != nil {
 		log.Fatalf("failed to execute create table statement over grpc: %s", err)
 	}
 
 	result, err = tx.Exec("INSERT INTO test(n) VALUES (1)")
 	if err != nil {
-		log.Fatalf("failed to execute create table statement over grpc: %s", err)
+		log.Fatalf("failed to execute insert statement over grpc: %s", err)
 	}
 
 	rows, err := tx.Query("SELECT n FROM test")
 	if err != nil {
 		log.Fatalf("failed to select rows over grpc: %s", err)
 	}
+	types, err := rows.ColumnTypes()
+	if len(types) != 1 {
+		log.Fatalf("wrong count of column types: %d", len(types))
+	}
+	name := types[0].DatabaseTypeName()
+
+	if err != nil {
+		log.Fatalf("failed to fetch column types over grpc: %s", err)
+	}
+
 	numbers := []int{}
 	for rows.Next() {
 		var n int
@@ -69,8 +79,10 @@ func Example() {
 	// Output:
 	// 1 <nil>
 	// 1 <nil>
+	// INTEGER
 	// [1]
 	fmt.Println(result.LastInsertId())
 	fmt.Println(result.RowsAffected())
+	fmt.Println(name)
 	fmt.Println(numbers)
 }
