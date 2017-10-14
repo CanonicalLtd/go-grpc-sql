@@ -23,10 +23,6 @@ func NewDriver(dialer Dialer) *Driver {
 	}
 }
 
-// TargetsFunc is a function that returns a list of gRPC targets that should be
-// tried round-robin when creating a new connection in Driver.Conn.
-type TargetsFunc func() ([]string, error)
-
 // Dialer is a function that can create a gRPC connection.
 type Dialer func() (conn *grpc.ClientConn, err error)
 
