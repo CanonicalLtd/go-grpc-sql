@@ -2,6 +2,7 @@ package grpcsql
 
 import (
 	"database/sql/driver"
+	"io"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/pkg/errors"
@@ -103,7 +104,9 @@ func (c *Conn) exec(request *protocol.Request) (*protocol.Response, error) {
 // If the given error is due to the gRPC endpoint being unavailable, return
 // ErrBadConn and mark the connection as doomed, otherwise return the original error.
 func (c *Conn) errorf(err error, format string, v ...interface{}) error {
-	if grpc.Code(err) == codes.Unavailable {
+	code := grpc.Code(err)
+	cause := errors.Cause(err)
+	if code == codes.Canceled || code == codes.Unavailable || cause == io.EOF {
 		c.grpcConnDoomed = true
 		return driver.ErrBadConn
 	}
