@@ -2,11 +2,13 @@ package grpcsql
 
 import (
 	"database/sql/driver"
+	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 )
 
 // Driver implements the database/sql/driver interface and executes the
@@ -49,15 +51,22 @@ func dial(dialer Dialer, name string) (*Conn, error) {
 		return nil, errors.Wrapf(err, "gRPC grpcConnection failed")
 	}
 
-	grpcClient := protocol.NewSQLClient(grpcConn)
-	grpcConnClient, err := grpcClient.Conn(context.Background())
-	if err != nil {
-		return nil, errors.Wrapf(err, "gRPC conn method failed")
-	}
-
-	conn := &Conn{
-		grpcConn:       grpcConn,
-		grpcConnClient: grpcConnClient,
+	// TODO: make the number of retries and timeout configurable
+	var conn *Conn
+	for i := 0; i < 3; i++ {
+		grpcClient := protocol.NewSQLClient(grpcConn)
+		grpcConnClient, err := grpcClient.Conn(context.Background())
+		if err != nil {
+			if grpc.Code(err) == codes.Unavailable && i != 2 {
+				time.Sleep(time.Second)
+				continue
+			}
+			return nil, errors.Wrapf(err, "gRPC conn method failed")
+		}
+		conn = &Conn{
+			grpcConn:       grpcConn,
+			grpcConnClient: grpcConnClient,
+		}
 	}
 
 	if _, err := conn.exec(protocol.NewRequestOpen(name)); err != nil {
