@@ -54,6 +54,9 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 			case sqlite3.Error:
 				response = protocol.NewResponseSQLiteError(
 					err.Code, err.ExtendedCode, err.Error())
+			case sqlite3.ErrNo:
+				response = protocol.NewResponseSQLiteError(
+					err, 0, err.Error())
 			default:
 				return errors.Wrapf(err, "failed to handle %s request", request.Code)
 			}

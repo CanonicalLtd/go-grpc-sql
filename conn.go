@@ -96,6 +96,12 @@ func (c *Conn) exec(request *protocol.Request) (*protocol.Response, error) {
 	}
 	switch response.Code {
 	case protocol.RequestCode_SQLITE_ERROR:
+		// FIXME: we compare the numeric code here to avoid importing
+		// go-sqlite3x.
+		err := response.SQLiteError()
+		if err.Code == 29 { // ErrNotLeader
+			return nil, driver.ErrBadConn
+		}
 		return nil, response.SQLiteError()
 	}
 	return response, nil
