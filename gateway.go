@@ -4,10 +4,11 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/golang/protobuf/proto"
-	sqlite3 "github.com/mattn/go-sqlite3"
+	"github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 )
 
@@ -40,9 +41,6 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 		if conn == nil {
 			conn = &gatewayConn{
 				driver: s.driver,
-				stmts:  make(map[int64]driver.Stmt),
-				txs:    make(map[int64]driver.Tx),
-				rows:   make(map[int64]driver.Rows),
 			}
 			defer conn.Close()
 		}
@@ -76,10 +74,13 @@ type gatewayConn struct {
 	txs        map[int64]driver.Tx
 	rows       map[int64]driver.Rows
 	serial     int64
+	mu         sync.Mutex
 }
 
 // Handle a single gRPC request for this connection.
 func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	var message proto.Message
 
 	switch request.Code {
@@ -174,6 +175,9 @@ func (c *gatewayConn) handleOpen(request *protocol.RequestOpen) (*protocol.Respo
 	}
 
 	c.driverConn = driverConn
+	c.stmts = make(map[int64]driver.Stmt)
+	c.txs = make(map[int64]driver.Tx)
+	c.rows = make(map[int64]driver.Rows)
 
 	response := protocol.NewResponseOpen()
 	return response, nil
