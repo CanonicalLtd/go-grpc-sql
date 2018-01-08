@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Conn wraps a connection to a gRPC SQL gateway.
@@ -110,11 +111,33 @@ func (c *Conn) exec(request *protocol.Request) (*protocol.Response, error) {
 // If the given error is due to the gRPC endpoint being unavailable, return
 // ErrBadConn and mark the connection as doomed, otherwise return the original error.
 func (c *Conn) errorf(err error, format string, v ...interface{}) error {
-	code := grpc.Code(err)
-	cause := errors.Cause(err)
-	if code == codes.Canceled || code == codes.Unavailable || cause == io.EOF {
+	if isBadConn(err) {
 		c.grpcConnDoomed = true
 		return driver.ErrBadConn
 	}
 	return errors.Wrapf(err, format, v...)
 }
+
+func isBadConn(err error) bool {
+	status, ok := status.FromError(err)
+	if ok {
+		code := status.Code()
+		if code == codes.Canceled || code == codes.Unavailable {
+			return true
+		}
+		// FIXME: this look like a spurious error which gets generated
+		//        only by the http test server of Go >= 1.9. Still, we
+		//        handle it in this ad-hoc way because when it happens
+		//        it simply means that the other end is down.
+		if code == codes.Internal && status.Message() == grpcNoErrorMessage {
+			return true
+		}
+	}
+	cause := errors.Cause(err)
+	if cause == io.EOF {
+		return true
+	}
+	return false
+}
+
+const grpcNoErrorMessage = "stream terminated by RST_STREAM with error code: NO_ERROR"
