@@ -3,10 +3,20 @@ language: go
 before_install:
   - go get github.com/go-playground/overalls
   - go get github.com/mattn/goveralls
+  - mkdir -p /tmp/sqlite
+  - cd /tmp/sqlite
+  - sqlite_project=CanonicalLtd/sqlite
+  - sqlite_latest=https://api.github.com/repos/$sqlite_project/releases/latest
+  - sqlite_release=$(curl -s $sqlite_latest | grep browser_download_url | cut -d '"' -f 4|grep debug)
+  - wget $sqlite_release -O - | tar xfz -
+  - sudo cp libsqlite3.so.0 libsqlite3.so.0.8.6 /usr/lib/x86_64-linux-gnu
+  - sudo cp sqlite3.h /usr/include/sqlite3.h
+  - cd -
 
 script:
   - go get -t -tags libsqlite3 ./...
-  - $GOPATH/bin/overalls -ignore internal/protocol -project github.com/CanonicalLtd/go-grpc-sql -covermode=count -- -tags libsqlite3
+  - project=github.com/CanonicalLtd/go-grpc-sql
+  - $GOPATH/bin/overalls -ignore internal/protocol -project $project -covermode=count -- -tags libsqlite3
   - $GOPATH/bin/goveralls -coverprofile overalls.coverprofile -service=travis-ci
 
 go:

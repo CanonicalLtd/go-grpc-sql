@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
-	"github.com/mattn/go-sqlite3"
+	"github.com/CanonicalLtd/go-sqlite3"
 )
 
 func Example() {
