@@ -7,8 +7,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/golang/protobuf/proto"
-	"github.com/mattn/go-sqlite3"
 )
 
 // NewRequestOpen creates a new Request of type RequestOpen.
