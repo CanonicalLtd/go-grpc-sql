@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+	sqlite3 "github.com/CanonicalLtd/go-sqlite3"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -97,10 +98,8 @@ func (c *Conn) exec(request *protocol.Request) (*protocol.Response, error) {
 	}
 	switch response.Code {
 	case protocol.RequestCode_SQLITE_ERROR:
-		// FIXME: we compare the numeric code here to avoid importing
-		// go-sqlite3x.
 		err := response.SQLiteError()
-		if err.Code == 29 { // ErrNotLeader
+		if err.ExtendedCode == sqlite3.ErrIoErrNotLeader || err.ExtendedCode == sqlite3.ErrIoErrLeadershipLost {
 			return nil, driver.ErrBadConn
 		}
 		return nil, response.SQLiteError()
