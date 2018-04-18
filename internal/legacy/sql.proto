@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package protocol;
+package legacy;
 
 // Interface exported by a gRPC SQL gateway.
 service SQL {

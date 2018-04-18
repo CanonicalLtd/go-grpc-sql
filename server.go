@@ -3,7 +3,7 @@ package grpcsql
 import (
 	"database/sql/driver"
 
-	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/legacy"
 	"google.golang.org/grpc"
 )
 
@@ -12,6 +12,6 @@ import (
 func NewServer(driver driver.Driver, opt ...grpc.ServerOption) *grpc.Server {
 	gateway := NewGateway(driver)
 	server := grpc.NewServer(opt...)
-	protocol.RegisterSQLServer(server, gateway)
+	legacy.RegisterSQLServer(server, gateway)
 	return server
 }

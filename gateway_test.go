@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
-	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/legacy"
 	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/mpvl/subtest"
 	"github.com/stretchr/testify/assert"
@@ -19,27 +19,27 @@ import (
 func TestGateway_ConnError(t *testing.T) {
 	cases := []struct {
 		title    string
-		requests []*protocol.Request // Sequence of requests to submit
-		err      string              // Error message
+		requests []*legacy.Request // Sequence of requests to submit
+		err      string            // Error message
 	}{
 		{
 			`invalid request code`,
-			[]*protocol.Request{{Code: 666}},
+			[]*legacy.Request{{Code: 666}},
 			"invalid request code 666",
 		},
 		{
 			`invalid request data`,
-			[]*protocol.Request{{Code: protocol.RequestCode_OPEN, Data: []byte("x")}},
+			[]*legacy.Request{{Code: legacy.RequestCode_OPEN, Data: []byte("x")}},
 			"request parse error",
 		},
 		{
 			`non-OPEN first request`,
-			[]*protocol.Request{protocol.NewRequestPrepare("close")},
+			[]*legacy.Request{legacy.NewRequestPrepare("close")},
 			"expected OPEN request, got PREPARE",
 		},
 		{
 			`non-OPEN first request`,
-			[]*protocol.Request{protocol.NewRequestOpen("/etc")},
+			[]*legacy.Request{legacy.NewRequestOpen("/etc")},
 			"could not open driver connection",
 		},
 	}
@@ -64,9 +64,9 @@ func TestGateway_ConnError(t *testing.T) {
 	}
 }
 
-// Create a new protocol.SQL_ConnClient stream connected to a Gateway backed by
+// Create a new legacy.SQL_ConnClient stream connected to a Gateway backed by
 // a SQLite driver.
-func newGatewayClient() (protocol.SQL_ConnClient, func()) {
+func newGatewayClient() (legacy.SQL_ConnClient, func()) {
 	server, address := newGatewayServer()
 
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
@@ -74,7 +74,7 @@ func newGatewayClient() (protocol.SQL_ConnClient, func()) {
 		panic(fmt.Errorf("failed to create gRPC connection: %v", err))
 	}
 
-	client := protocol.NewSQLClient(conn)
+	client := legacy.NewSQLClient(conn)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(2*time.Second))
 	cleanup := func() {
 		cancel()

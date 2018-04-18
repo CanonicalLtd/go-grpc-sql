@@ -1,4 +1,4 @@
-package protocol_test
+package legacy_test
 
 import (
 	"database/sql/driver"
@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/legacy"
 )
 
 // Marshal driver.Value slices.
@@ -29,10 +29,10 @@ func TestFromDriverValues(t *testing.T) {
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			values, err := protocol.FromDriverValues(c.objects)
+			values, err := legacy.FromDriverValues(c.objects)
 			require.NoError(t, err)
 
-			objects, err := protocol.ToDriverValues(values)
+			objects, err := legacy.ToDriverValues(values)
 			require.NoError(t, err)
 
 			assert.Equal(t, c.objects, objects)
@@ -55,7 +55,7 @@ func TestFromDriverValues_Error(t *testing.T) {
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			_, err := protocol.FromDriverValues(c.objects)
+			_, err := legacy.FromDriverValues(c.objects)
 			assert.EqualError(t, err, c.err)
 		})
 	}
@@ -65,23 +65,23 @@ func TestFromDriverValues_Error(t *testing.T) {
 func TestToDriverValues_Error(t *testing.T) {
 	cases := []struct {
 		title string
-		value protocol.Value
+		value legacy.Value
 		err   string
 	}{
 		{
 			`invalid code`,
-			protocol.Value{Code: 666},
+			legacy.Value{Code: 666},
 			"cannot unmarshal value 0: invalid value type code 666",
 		},
 		{
 			`garbage data`,
-			protocol.Value{Code: protocol.ValueCode_INT64, Data: []byte("foo")},
+			legacy.Value{Code: legacy.ValueCode_INT64, Data: []byte("foo")},
 			"cannot unmarshal value 0: proto: illegal wireType 6",
 		},
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			_, err := protocol.ToDriverValues([]*protocol.Value{&c.value})
+			_, err := legacy.ToDriverValues([]*legacy.Value{&c.value})
 			assert.EqualError(t, err, c.err)
 		})
 	}
@@ -93,19 +93,19 @@ func TestToValueCode(t *testing.T) {
 	cases := []struct {
 		title string
 		typ   reflect.Type
-		code  protocol.ValueCode
+		code  legacy.ValueCode
 	}{
-		{`string`, reflect.TypeOf(""), protocol.ValueCode_STRING},
-		{`int64`, reflect.TypeOf(int64(0)), protocol.ValueCode_INT64},
-		{`float64`, reflect.TypeOf(float64(0)), protocol.ValueCode_FLOAT64},
-		{`bool`, reflect.TypeOf(false), protocol.ValueCode_BOOL},
-		{`bytes`, reflect.TypeOf(byte(0)), protocol.ValueCode_BYTES},
-		{`time`, reflect.TypeOf(time.Time{}), protocol.ValueCode_TIME},
-		{`nil`, reflect.TypeOf(nil), protocol.ValueCode_NULL},
+		{`string`, reflect.TypeOf(""), legacy.ValueCode_STRING},
+		{`int64`, reflect.TypeOf(int64(0)), legacy.ValueCode_INT64},
+		{`float64`, reflect.TypeOf(float64(0)), legacy.ValueCode_FLOAT64},
+		{`bool`, reflect.TypeOf(false), legacy.ValueCode_BOOL},
+		{`bytes`, reflect.TypeOf(byte(0)), legacy.ValueCode_BYTES},
+		{`time`, reflect.TypeOf(time.Time{}), legacy.ValueCode_TIME},
+		{`nil`, reflect.TypeOf(nil), legacy.ValueCode_NULL},
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			code := protocol.ToValueCode(c.typ)
+			code := legacy.ToValueCode(c.typ)
 			assert.Equal(t, c.code, code)
 		})
 	}
@@ -116,19 +116,19 @@ func TestFromValueCode(t *testing.T) {
 	cases := []struct {
 		title string
 		typ   reflect.Type
-		code  protocol.ValueCode
+		code  legacy.ValueCode
 	}{
-		{`string`, reflect.TypeOf(""), protocol.ValueCode_STRING},
-		{`int64`, reflect.TypeOf(int64(0)), protocol.ValueCode_INT64},
-		{`float64`, reflect.TypeOf(float64(0)), protocol.ValueCode_FLOAT64},
-		{`bool`, reflect.TypeOf(false), protocol.ValueCode_BOOL},
-		{`bytes`, reflect.TypeOf(byte(0)), protocol.ValueCode_BYTES},
-		{`time`, reflect.TypeOf(time.Time{}), protocol.ValueCode_TIME},
-		{`nil`, reflect.TypeOf(nil), protocol.ValueCode_NULL},
+		{`string`, reflect.TypeOf(""), legacy.ValueCode_STRING},
+		{`int64`, reflect.TypeOf(int64(0)), legacy.ValueCode_INT64},
+		{`float64`, reflect.TypeOf(float64(0)), legacy.ValueCode_FLOAT64},
+		{`bool`, reflect.TypeOf(false), legacy.ValueCode_BOOL},
+		{`bytes`, reflect.TypeOf(byte(0)), legacy.ValueCode_BYTES},
+		{`time`, reflect.TypeOf(time.Time{}), legacy.ValueCode_TIME},
+		{`nil`, reflect.TypeOf(nil), legacy.ValueCode_NULL},
 	}
 	for _, c := range cases {
 		subtest.Run(t, c.title, func(t *testing.T) {
-			typ := protocol.FromValueCode(c.code)
+			typ := legacy.FromValueCode(c.code)
 			assert.Equal(t, c.typ, typ)
 		})
 	}

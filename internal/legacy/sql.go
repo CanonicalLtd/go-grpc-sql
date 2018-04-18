@@ -1,4 +1,4 @@
-package protocol
+package legacy
 
 import (
 	"database/sql/driver"

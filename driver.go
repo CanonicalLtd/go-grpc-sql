@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 	"time"
 
-	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/legacy"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -54,7 +54,7 @@ func dial(dialer Dialer, name string) (*Conn, error) {
 	// TODO: make the number of retries and timeout configurable
 	var conn *Conn
 	for i := 0; i < 3; i++ {
-		grpcClient := protocol.NewSQLClient(grpcConn)
+		grpcClient := legacy.NewSQLClient(grpcConn)
 		grpcConnClient, err := grpcClient.Conn(context.Background())
 		if err != nil {
 			if grpc.Code(err) == codes.Unavailable && i != 2 {
@@ -69,7 +69,7 @@ func dial(dialer Dialer, name string) (*Conn, error) {
 		}
 	}
 
-	if _, err := conn.exec(protocol.NewRequestOpen(name)); err != nil {
+	if _, err := conn.exec(legacy.NewRequestOpen(name)); err != nil {
 		return nil, errors.Wrapf(err, "gRPC could not send open request")
 	}
 

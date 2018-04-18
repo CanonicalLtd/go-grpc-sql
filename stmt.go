@@ -3,7 +3,7 @@ package grpcsql
 import (
 	"database/sql/driver"
 
-	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/legacy"
 )
 
 // Stmt is a prepared statement. It is bound to a Conn and not
@@ -16,7 +16,7 @@ type Stmt struct {
 
 // Close closes the statement.
 func (s *Stmt) Close() error {
-	_, err := s.conn.exec(protocol.NewRequestStmtClose(s.id))
+	_, err := s.conn.exec(legacy.NewRequestStmtClose(s.id))
 	return err
 }
 
@@ -27,12 +27,12 @@ func (s *Stmt) NumInput() int {
 
 // Exec executes a query that doesn't return rows, such
 func (s *Stmt) Exec(args []driver.Value) (driver.Result, error) {
-	values, err := protocol.FromDriverValues(args)
+	values, err := legacy.FromDriverValues(args)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := s.conn.exec(protocol.NewRequestExec(s.id, values))
+	response, err := s.conn.exec(legacy.NewRequestExec(s.id, values))
 	if err != nil {
 		return nil, err
 	}
@@ -46,12 +46,12 @@ func (s *Stmt) Exec(args []driver.Value) (driver.Result, error) {
 
 // Query executes a query that may return rows, such as a
 func (s *Stmt) Query(args []driver.Value) (driver.Rows, error) {
-	values, err := protocol.FromDriverValues(args)
+	values, err := legacy.FromDriverValues(args)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := s.conn.exec(protocol.NewRequestQuery(s.id, values))
+	response, err := s.conn.exec(legacy.NewRequestQuery(s.id, values))
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,7 @@
 // DO NOT EDIT!
 
 /*
-	Package protocol is a generated protocol buffer package.
+	package legacy is a generated protocol buffer package.
 
 	It is generated from these files:
 		internal/protocol/sql.proto
@@ -48,7 +48,7 @@
 		ValueTime
 		ValueNull
 */
-package protocol
+package legacy
 
 import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
