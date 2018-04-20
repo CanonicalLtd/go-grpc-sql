@@ -1,0 +1,252 @@
+syntax = "proto3";
+
+package sql;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+option (gogoproto.populate_all) = true;
+option (gogoproto.testgen_all) = true;
+option (gogoproto.benchgen_all) = true;
+
+// Gateway is the interface implemented by a gRPC SQL gateway service, which
+// exposes a SQL driver over gRPC.
+service Gateway {
+
+  // Leader returns the current leader of the cluster this gRPC SQL gateway is
+  // part of.
+  rpc Leader(Empty) returns (Server);
+
+  // Register a new client, which can then start opening connections. Return
+  // the timeout after which all client connections will be killed if no
+  // heartbeat is received from the client.
+  //
+  // This API is idempotent and it's okay to call it again for the same client.
+  rpc Register(Client) returns (Duration);
+
+  // Heartbeat is a stream that must be kept alive by clients in order to
+  // prevent their connections from being killed, and to receive updates about
+  // available gateway servers in the cluster.
+  rpc Heartbeat(stream Client) returns (stream Cluster) {}
+
+  // Connect to a SQL database exposed over gRPC and return a new connection.
+  rpc Connect(Database) returns (Conn);
+
+  // Prepare a new statement within a transaction.
+  rpc Prepare(SQL) returns (Stmt);
+
+  // Begin a new transaction on the given connection.
+  rpc Begin(Conn) returns (Tx);
+
+  // Exec executes a prepared statement and returns a Result object.
+  rpc Exec(BoundStmt) returns (Result);
+
+  // ExecSQL prepares and executes a statement with parameters, and
+  // returns a Result object.
+  rpc ExecSQL(BoundSQL) returns (Result);
+
+  // Query executes a prepared statement and returns a Rows object.
+  rpc Query(BoundStmt) returns (Rows);
+
+  // Next returns the next row in a Rows object.
+  rpc Next(Rows) returns (Row);
+
+  // ColumnTypeScanType returns the type of certain column for the current row
+  // pointed by a Rows object.
+  rpc ColumnTypeScanType(Column) returns (Type);
+
+  // ColumnTypeDatabaseTypeName returns the name of the type of certain column
+  // in a Rows object.
+  rpc ColumnTypeDatabaseTypeName(Column) returns (TypeName);
+
+  // Commit a transaction.
+  rpc Commit(Tx) returns (Token);
+
+  // Rollback a transaction.
+  rpc Rollback(Tx) returns (Empty);
+
+  // Recover a possibly committed transaction.
+  rpc Recover(Token) returns (Empty);
+
+  // Close a prepared statement.
+  rpc CloseStmt(Stmt) returns (Empty);
+
+  // Close a Rows result set.
+  rpc CloseRows(Rows) returns (Empty);
+
+  // Close a SQL connection.
+  rpc Close(Conn) returns (Empty);
+}
+
+// Client holds information about a gRPC SQL client.
+message Client {
+  string id = 1; // Client identifier.
+}
+
+// Duration represents a certain amount of time in nano seconds.
+message Duration {
+  int64 value = 1;
+}
+
+// Server holds information about a gRPC SQL server.
+message Server {
+  string address = 1; // Address the server is reachable at (must follow gRPC target name conventions).
+}
+
+// Cluster holds a list of gRPC SQL servers that form a cluster.
+message Cluster {
+  repeated Server servers = 1; // List of servers in the cluster.
+}
+
+// Database connection parameters.
+message Database {
+  string client_id = 1; // Identifier of the client opening the connection.
+  string name      = 2; // Name of the database to open.
+}
+
+// Conn references a database connection on a given gateway service.
+message Conn {
+  uint32 id = 1 [(gogoproto.casttype) = "ConnID"];
+}
+
+// SQL holds the text of an SQL statement to prepare on a given connection.
+message SQL {
+  uint32 conn_id = 1 [(gogoproto.casttype) = "ConnID"];
+  string text    = 2; // SQL text of the statement.
+}
+
+// Stmt references a prepared statement on a given connection.
+message Stmt {
+  uint32 conn_id   = 1 [(gogoproto.casttype) = "ConnID"];
+  uint32 id        = 2 [(gogoproto.casttype) = "StmtID"];
+  int32  num_input = 3;
+}
+
+// Tx references a transaction on a given connection.
+message Tx {
+  uint32 conn_id = 1 [(gogoproto.casttype) = "ConnID"];
+  uint32 id      = 2 [(gogoproto.casttype) = "TxID"];
+}
+
+// BoundStmt is used to execute a given prepared statement.
+message BoundStmt {
+  uint32              conn_id        = 1 [(gogoproto.casttype) = "ConnID"];
+  uint32              stmt_id        = 2 [(gogoproto.casttype) = "StmtID"];
+  repeated NamedValue named_values   = 3; // Values to bind to the statement parameters.
+}
+
+// BoundSQL is used to prepare and execute a statement with a single RPC.
+message BoundSQL {
+  uint32              conn_id        = 1 [(gogoproto.casttype) = "ConnID"];
+  string              text           = 2; // SQL text of the statement.
+  repeated NamedValue named_values   = 3; // Values to bind to the statement parameters.
+}
+
+// Result of a statement execution.
+message Result {
+  int64 last_insert_id = 1;
+  int64 rows_affected  = 2;
+}
+
+// Rows references a result set of a query.
+message Rows {
+  uint32          conn_id    = 1 [(gogoproto.casttype) = "ConnID"];
+  uint32          id         = 2 [(gogoproto.casttype) = "RowsID"];
+  repeated string columns    = 3; // Names of the columns in the result set.
+}
+
+// Row is a single row yielded by the result set of a query statement.
+message Row {
+  repeated Value columns = 1; // Column values.
+}
+
+// Column references is a single column on given result set.
+message Column {
+  uint32 conn_id = 1 [(gogoproto.casttype) = "ConnID"];
+  uint32 rows_id = 2 [(gogoproto.casttype) = "RowsID"];
+  int32  index   = 3; // Index of the column.
+}
+
+// NamedValue is the value of a single parameter in prepared statement.
+message NamedValue {
+  string name    = 1;
+  int32  ordinal = 2;
+  Value  value   = 3;
+}
+
+// Value is the value of a single parameter in prepared statement or in a row column.
+message Value {
+  oneof type {
+    Null    null    = 1;
+    Int64   int64   = 2;
+    Float64 float64 = 3;
+    Bool    bool    = 4;
+    Bytes   bytes   = 5;
+    String  string  = 6;
+    Time    time    = 7;
+  }
+}
+
+message Null {
+}
+
+message Int64 {
+  int64 value = 1;
+}
+
+message Float64 {
+  double value = 1;
+}
+
+message Bool {
+  bool value = 1;
+}
+
+message Bytes {
+  bytes value = 1;
+}
+
+message String {
+  string value = 1;
+}
+
+message Time {
+  int64 value = 1;
+}
+
+// Type is a numerical code identifying the type of a Value
+message Type {
+  enum Code {
+    INT64   = 0;
+    FLOAT64 = 1;
+    BOOL    = 2;
+    BYTES   = 3;
+    STRING  = 4;
+    TIME    = 5;
+    NULL    = 6;
+  }
+  Code code = 1;
+}
+
+// TypeName is the name of the declared type of certain column in a Rows result
+// set.
+message TypeName {
+  string value = 1; // Name of the type
+}
+
+// Token is returned in case of a possibly transient error upon transaction
+// commit or rollback, and should be presented by the client to another gateway
+// service to attempt to complete the operation.
+message Token {
+  uint64 value = 1; // Value of the token.
+}
+
+// Empty response message
+message Empty {
+}
+
+// Hold information about a driver error. This modeled against SQLite errors.
+message Error {
+  int64 code          = 1; // Error code.
+  int64 extended_code = 2; // Extended error code.
+  string message      = 3; // Error message
+}
