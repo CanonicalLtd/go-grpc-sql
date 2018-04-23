@@ -16,8 +16,10 @@ before_install:
 script:
   - go get -t -tags libsqlite3 ./...
   - project=github.com/CanonicalLtd/go-grpc-sql
-  - $GOPATH/bin/overalls -ignore internal/protocol -project $project -covermode=count -- -tags libsqlite3
+  - $GOPATH/bin/overalls -ignore internal/sql -project $project -covermode=count -- -tags libsqlite3
   - $GOPATH/bin/goveralls -coverprofile overalls.coverprofile -service=travis-ci
 
 go:
-  - 1.9
+  - "1.9"
+  - "1.10"
+  - "master"
