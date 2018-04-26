@@ -71,8 +71,11 @@ func newGateway(t *testing.T, logger *zap.Logger) *gateway.Gateway {
 	t.Helper()
 
 	driver := &sqlite3.SQLiteDriver{}
+	config := gateway.Config{
+		HeartbeatTimeout: 200 * time.Millisecond,
+	}
 
-	gateway := gateway.New(driver, logger)
+	gateway := gateway.New(driver, config, logger)
 
 	// Register a client with ID 0.
 	_, err := gateway.Register(context.Background(), sql.NewClient("0"))

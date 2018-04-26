@@ -1,18 +1,6 @@
 package grpcsql_test
 
-import (
-	"database/sql/driver"
-	"testing"
-
-	"google.golang.org/grpc"
-
-	"github.com/CanonicalLtd/go-grpc-sql"
-	"github.com/CanonicalLtd/go-sqlite3"
-	"github.com/mpvl/subtest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-)
-
+/*
 // Open a new gRPC connection.
 func TestDriver_Open(t *testing.T) {
 	driver, cleanup := newDriver()
@@ -109,3 +97,4 @@ func newDriver() (*grpcsql.Driver, func()) {
 	cleanup := func() { server.Stop() }
 	return driver, cleanup
 }
+*/

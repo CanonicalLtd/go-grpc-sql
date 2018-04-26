@@ -1,17 +1,6 @@
 package grpcsql_test
 
-import (
-	"database/sql"
-	"fmt"
-	"log"
-	"net"
-
-	"google.golang.org/grpc"
-
-	"github.com/CanonicalLtd/go-grpc-sql"
-	"github.com/CanonicalLtd/go-sqlite3"
-)
-
+/*
 func Example() {
 	listener, err := net.Listen("tcp", ":0")
 	if err != nil {
@@ -86,3 +75,4 @@ func Example() {
 	fmt.Println(name)
 	fmt.Println(numbers)
 }
+*/

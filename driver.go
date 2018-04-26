@@ -1,77 +1,103 @@
 package grpcsql
 
 import (
-	"database/sql/driver"
+	"crypto/rand"
+	sqldriver "database/sql/driver"
+	"fmt"
 	"time"
 
-	"github.com/CanonicalLtd/go-grpc-sql/internal/legacy"
-	"github.com/pkg/errors"
-	"golang.org/x/net/context"
+	"github.com/CanonicalLtd/go-grpc-sql/cluster"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/connector"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/driver"
+	"github.com/Rican7/retry/backoff"
+	"github.com/Rican7/retry/jitter"
+	"github.com/Rican7/retry/strategy"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 )
-
-// Driver implements the database/sql/driver interface and executes the
-// relevant statements over gRPC.
-type Driver struct {
-	dialer Dialer
-}
 
 // NewDriver creates a new gRPC SQL driver for creating connections to backend
 // gateways.
-func NewDriver(dialer Dialer) *Driver {
-	return &Driver{
-		dialer: dialer,
+func NewDriver(store cluster.ServerStore, options ...DriverOption) sqldriver.Driver {
+	o := defaultDriverOptions()
+
+	for _, option := range options {
+		option(o)
+	}
+
+	connector := connector.New(o.id, store, o.connectorConfig, o.logger)
+	config := defaultDriverConfig()
+
+	return driver.New(o.id, connector.Connect, config, o.logger)
+}
+
+// A DriverOption can be used to tweak various aspects of a gRPC SQL driver.
+type DriverOption func(options *driverOptions)
+
+// DriverLogger sets the zap logger used by a gRPC SQL driver.
+func DriverLogger(logger *zap.Logger) DriverOption {
+	return func(o *driverOptions) {
+		o.logger = logger
 	}
 }
 
-// Dialer is a function that can create a gRPC connection.
-type Dialer func() (conn *grpc.ClientConn, err error)
-
-// Open a new connection against a gRPC SQL server.
-//
-// To establish the gRPC connection, the dialer passed to NewDriver() will
-// used.
-//
-// The given data source name must be one that the driver attached to the
-//remote Gateway can understand.
-func (d *Driver) Open(name string) (driver.Conn, error) {
-	conn, err := dial(d.dialer, name)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+type driverOptions struct {
+	id              string           // gRPC SQL client identifier.
+	connectorConfig connector.Config // Connector configuration.
+	logger          *zap.Logger      // Zap logger to use.
 }
 
-// Create a new connection to a gRPC endpoint.
-func dial(dialer Dialer, name string) (*Conn, error) {
-	grpcConn, err := dialer()
-	if err != nil {
-		return nil, errors.Wrapf(err, "gRPC grpcConnection failed")
+// Create a driverOptions object with sane defaults.
+func defaultDriverOptions() *driverOptions {
+	return &driverOptions{
+		id:              defaultClientID(),
+		connectorConfig: defaultConnectorConfig(),
+		logger:          defaultLogger(),
 	}
+}
 
-	// TODO: make the number of retries and timeout configurable
-	var conn *Conn
-	for i := 0; i < 3; i++ {
-		grpcClient := legacy.NewSQLClient(grpcConn)
-		grpcConnClient, err := grpcClient.Conn(context.Background())
-		if err != nil {
-			if grpc.Code(err) == codes.Unavailable && i != 2 {
-				time.Sleep(time.Second)
-				continue
+// Generate a random UUID as client identifier.
+func defaultClientID() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+}
+
+// Sane connector defaults.
+func defaultConnectorConfig() connector.Config {
+	return connector.Config{
+		AttemptTimeout: time.Second,
+		DialOptions: []grpc.DialOption{
+			grpc.WithInsecure(),
+		},
+		RetryStrategies: []strategy.Strategy{defaultRetryStrategy()},
+	}
+}
+
+// Return a retry strategy with jittered exponential backoff, capped at 45
+// seconds.
+func defaultRetryStrategy() strategy.Strategy {
+	backoff := backoff.BinaryExponential(5 * time.Millisecond)
+	jitter := jitter.Equal(nil)
+	cap := 45 * time.Second
+
+	return func(attempt uint) bool {
+		if attempt > 0 {
+			duration := jitter(backoff(attempt))
+			if duration > cap {
+				duration = cap
 			}
-			return nil, errors.Wrapf(err, "gRPC conn method failed")
+			time.Sleep(duration)
 		}
-		conn = &Conn{
-			grpcConn:       grpcConn,
-			grpcConnClient: grpcConnClient,
-		}
-	}
 
-	if _, err := conn.exec(legacy.NewRequestOpen(name)); err != nil {
-		return nil, errors.Wrapf(err, "gRPC could not send open request")
+		return true
 	}
+}
 
-	return conn, nil
+// Sane driver defaults.
+func defaultDriverConfig() driver.Config {
+	return driver.Config{
+		ConnectTimeout: 1 * time.Second,
+		MethodTimeout:  1 * time.Second,
+	}
 }
