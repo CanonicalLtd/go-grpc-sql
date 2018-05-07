@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CanonicalLtd/go-grpc-sql/cluster"
+	"github.com/CanonicalLtd/go-grpc-sql/internal/cluster"
 	"github.com/CanonicalLtd/go-grpc-sql/internal/connector"
 	"github.com/CanonicalLtd/go-grpc-sql/internal/driver"
 	"github.com/Rican7/retry/backoff"
@@ -30,6 +30,10 @@ func NewDriver(store cluster.ServerStore, options ...DriverOption) sqldriver.Dri
 
 	return driver.New(o.id, connector.Connect, config, o.logger)
 }
+
+// DriverCluster is an optional interface that may be implemented by a standard
+// driver.Driver that is cluster-aware (such as dqlite).
+type DriverCluster cluster.DriverCluster
 
 // A DriverOption can be used to tweak various aspects of a gRPC SQL driver.
 type DriverOption func(options *driverOptions)

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql"
-	"github.com/CanonicalLtd/go-grpc-sql/cluster"
 	"github.com/CanonicalLtd/go-sqlite3"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
@@ -81,10 +80,10 @@ func newContext() (context.Context, context.CancelFunc) {
 }
 
 // Return a new test store.
-func newStore(t *testing.T) cluster.ServerStore {
+func newStore(t *testing.T) grpcsql.ServerStore {
 	t.Helper()
 
-	store, err := cluster.DefaultServerStore(":memory:")
+	store, err := grpcsql.DefaultServerStore(":memory:")
 	require.NoError(t, err)
 
 	return store
