@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/CanonicalLtd/go-grpc-sql/internal/protocol"
 	"github.com/CanonicalLtd/go-sqlite3"
@@ -15,6 +16,7 @@ import (
 // Gateway mapping gRPC requests to SQL queries.
 type Gateway struct {
 	driver driver.Driver // Underlying SQL driver.
+	conn   *gatewayConn
 }
 
 // NewGateway creates a new gRPC gateway executing requests against the given
@@ -22,13 +24,13 @@ type Gateway struct {
 func NewGateway(drv driver.Driver) *Gateway {
 	return &Gateway{
 		driver: drv,
+		conn:   &gatewayConn{driver: drv},
 	}
 }
 
 // Conn creates a new database connection using the underlying driver, and
 // start accepting requests for it.
 func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
-	var conn *gatewayConn
 	for {
 		request, err := stream.Recv()
 		if err == io.EOF {
@@ -38,14 +40,7 @@ func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
 			return errors.Wrapf(err, "failed to receive request")
 		}
 
-		if conn == nil {
-			conn = &gatewayConn{
-				driver: s.driver,
-			}
-			defer conn.Close()
-		}
-
-		response, err := conn.handle(request)
+		response, err := s.conn.handle(request)
 		if err != nil {
 			// TODO: add support for more driver-specific errors.
 			switch err := err.(type) {
@@ -75,12 +70,12 @@ type gatewayConn struct {
 	rows       map[int64]driver.Rows
 	serial     int64
 	mu         sync.Mutex
+	refcount   int
+	txCh       chan struct{}
 }
 
 // Handle a single gRPC request for this connection.
 func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	var message proto.Message
 
 	switch request.Code {
@@ -159,16 +154,15 @@ func (c *gatewayConn) handle(request *protocol.Request) (*protocol.Response, err
 	}
 }
 
-// Close the underlying driver connection, if any.
-func (c *gatewayConn) Close() error {
-	if c.driverConn != nil {
-		return c.driverConn.Close()
-	}
-	return nil
-}
-
 // Handle a request of type OPEN.
 func (c *gatewayConn) handleOpen(request *protocol.RequestOpen) (*protocol.Response, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.refcount > 0 {
+		c.refcount++
+		return protocol.NewResponseOpen(), nil
+	}
 	driverConn, err := c.driver.Open(request.Name)
 	if err != nil {
 		return nil, fmt.Errorf("could not open driver connection: %v", err)
@@ -179,14 +173,38 @@ func (c *gatewayConn) handleOpen(request *protocol.RequestOpen) (*protocol.Respo
 	c.txs = make(map[int64]driver.Tx)
 	c.rows = make(map[int64]driver.Rows)
 
+	c.refcount++
 	response := protocol.NewResponseOpen()
 	return response, nil
 }
 
+func (c *gatewayConn) abort() {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("grpc-sql abort panic: %v\n", r)
+		}
+	}()
+	for _, rows := range c.rows {
+		rows.Close()
+	}
+	for _, stmt := range c.stmts {
+		stmt.Close()
+	}
+	for _, tx := range c.txs {
+		tx.Rollback()
+	}
+	close(c.txCh)
+	c.mu.Unlock()
+}
+
 // Handle a request of type PREPARE.
 func (c *gatewayConn) handlePrepare(request *protocol.RequestPrepare) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverStmt, err := c.driverConn.Prepare(request.Query)
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 	c.serial++
@@ -196,8 +214,12 @@ func (c *gatewayConn) handlePrepare(request *protocol.RequestPrepare) (*protocol
 
 // Handle a request of type EXEC.
 func (c *gatewayConn) handleExec(request *protocol.RequestExec) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverStmt, ok := c.stmts[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no prepared statement with ID %d", request.Id)
 	}
 
@@ -208,11 +230,13 @@ func (c *gatewayConn) handleExec(request *protocol.RequestExec) (*protocol.Respo
 
 	result, err := driverStmt.Exec(args)
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
 	lastInsertID, err := result.LastInsertId()
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
@@ -228,6 +252,9 @@ func (c *gatewayConn) handleExec(request *protocol.RequestExec) (*protocol.Respo
 
 // Handle a request of type QUERY.
 func (c *gatewayConn) handleQuery(request *protocol.RequestQuery) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverStmt, ok := c.stmts[request.Id]
 	if !ok {
 		return nil, fmt.Errorf("no prepared statement with ID %d", request.Id)
@@ -235,11 +262,13 @@ func (c *gatewayConn) handleQuery(request *protocol.RequestQuery) (*protocol.Res
 
 	args, err := protocol.ToDriverValues(request.Args)
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
 	driverRows, err := driverStmt.Query(args)
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
@@ -251,8 +280,12 @@ func (c *gatewayConn) handleQuery(request *protocol.RequestQuery) (*protocol.Res
 
 // Handle a request of type NEXT.
 func (c *gatewayConn) handleNext(request *protocol.RequestNext) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverRows, ok := c.rows[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no rows with ID %d", request.Id)
 	}
 
@@ -263,11 +296,13 @@ func (c *gatewayConn) handleNext(request *protocol.RequestNext) (*protocol.Respo
 	}
 
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
 	values, err := protocol.FromDriverValues(dest)
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
@@ -276,8 +311,12 @@ func (c *gatewayConn) handleNext(request *protocol.RequestNext) (*protocol.Respo
 
 // Handle a request of type COLUMN_TYPE_SCAN_TYPE.
 func (c *gatewayConn) handleColumnTypeScanType(request *protocol.RequestColumnTypeScanType) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverRows, ok := c.rows[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no rows with ID %d", request.Id)
 	}
 
@@ -293,8 +332,12 @@ func (c *gatewayConn) handleColumnTypeScanType(request *protocol.RequestColumnTy
 
 // Handle a request of type COLUMN_TYPE_DATABASE_TYPE_NAME.
 func (c *gatewayConn) handleColumnTypeDatabaseTypeName(request *protocol.RequestColumnTypeDatabaseTypeName) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverRows, ok := c.rows[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no rows with ID %d", request.Id)
 	}
 
@@ -309,13 +352,18 @@ func (c *gatewayConn) handleColumnTypeDatabaseTypeName(request *protocol.Request
 
 // Handle a request of type ROWS_CLOSE.
 func (c *gatewayConn) handleRowsClose(request *protocol.RequestRowsClose) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverRows, ok := c.rows[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no rows with ID %d", request.Id)
 	}
 	delete(c.rows, request.Id)
 
 	if err := driverRows.Close(); err != nil {
+		c.abort()
 		return nil, err
 	}
 
@@ -325,13 +373,18 @@ func (c *gatewayConn) handleRowsClose(request *protocol.RequestRowsClose) (*prot
 
 // Handle a request of type STMT_CLOSE.
 func (c *gatewayConn) handleStmtClose(request *protocol.RequestStmtClose) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	driverStmt, ok := c.stmts[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no prepared statement with ID %d", request.Id)
 	}
 	delete(c.stmts, request.Id)
 
 	if err := driverStmt.Close(); err != nil {
+		c.abort()
 		return nil, err
 	}
 
@@ -341,51 +394,88 @@ func (c *gatewayConn) handleStmtClose(request *protocol.RequestStmtClose) (*prot
 
 // Handle a request of type BEGIN.
 func (c *gatewayConn) handleBegin(request *protocol.RequestBegin) (*protocol.Response, error) {
+	c.mu.Lock()
+	if len(c.txs) != 0 {
+		c.mu.Unlock()
+		return nil, fmt.Errorf("transaction in progress")
+	}
 	driverTx, err := c.driverConn.Begin()
 	if err != nil {
+		c.mu.Unlock()
 		return nil, err
 	}
 	c.serial++
 	c.txs[c.serial] = driverTx
+	c.txCh = make(chan struct{})
+
+	// Kill the transaction after a fixed timeout.
+	go func(serial int64, ch chan struct{}) {
+		select {
+		case <-ch:
+		case <-time.After(5 * time.Second):
+			c.abort()
+		}
+	}(c.serial, c.txCh)
 	return protocol.NewResponseBegin(c.serial), nil
 }
 
 // Handle a request of type COMMIT.
 func (c *gatewayConn) handleCommit(request *protocol.RequestCommit) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
+
 	driverTx, ok := c.txs[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no transaction with ID %d", request.Id)
 	}
 	delete(c.txs, request.Id)
 
 	if err := driverTx.Commit(); err != nil {
+		defer c.abort()
 		return nil, err
 	}
 
+	c.abort()
 	response := protocol.NewResponseCommit()
 	return response, nil
 }
 
 // Handle a request of type ROLLBACK.
 func (c *gatewayConn) handleRollback(request *protocol.RequestRollback) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
+
 	driverTx, ok := c.txs[request.Id]
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("no transaction with ID %d", request.Id)
 	}
 	delete(c.txs, request.Id)
 
 	if err := driverTx.Rollback(); err != nil {
+		c.abort()
 		return nil, err
 	}
 
+	c.abort()
 	response := protocol.NewResponseRollback()
 	return response, nil
 }
 
 // Handle a request of type CLOSE.
 func (c *gatewayConn) handleClose(request *protocol.RequestClose) (*protocol.Response, error) {
-	if err := c.driverConn.Close(); err != nil {
-		return nil, err
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.refcount--
+
+	if c.refcount == 0 {
+		if err := c.driverConn.Close(); err != nil {
+			return nil, err
+		}
 	}
 
 	response := protocol.NewResponseClose()
@@ -394,27 +484,35 @@ func (c *gatewayConn) handleClose(request *protocol.RequestClose) (*protocol.Res
 
 // Handle a request of type CONN_EXEC.
 func (c *gatewayConn) handleConnExec(request *protocol.RequestConnExec) (*protocol.Response, error) {
+	if len(c.txs) != 1 {
+		return nil, fmt.Errorf("not in a transaction")
+	}
 	args, err := protocol.ToDriverValues(request.Args)
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
 	execer, ok := c.driverConn.(driver.Execer)
 	if !ok {
+		c.abort()
 		return nil, fmt.Errorf("backend driver does not implement driver.Execer")
 	}
 	result, err := execer.Exec(request.Query, args)
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
 	lastInsertID, err := result.LastInsertId()
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
 	rowsAffected, err := result.RowsAffected()
 	if err != nil {
+		c.abort()
 		return nil, err
 	}
 
