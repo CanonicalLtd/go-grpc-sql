@@ -31,8 +31,8 @@ func NewGateway(drv driver.Driver) *Gateway {
 // Conn creates a new database connection using the underlying driver, and
 // start accepting requests for it.
 func (s *Gateway) Conn(stream protocol.SQL_ConnServer) error {
+	defer s.conn.rollback()
 	for {
-		defer s.conn.rollback()
 
 		request, err := stream.Recv()
 		if err == io.EOF {
